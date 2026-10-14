@@ -1,29 +1,76 @@
 #pragma once
 
 #include "apex_pro_mini_protocol.h"
-#include "apex_pro_mini_layout.h"
 #include <QColorDialog>
 #include <QFont>
-#include <QSizePolicy>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMouseEvent>
 #include <QPushButton>
+#include <QRubberBand>
+#include <QSet>
+#include <QSizePolicy>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <initializer_list>
 #include <utility>
+#include <vector>
 
 namespace apex_mini
 {
-// Widths are derived from the owner's ANSI 60%-keyboard photograph.
-// This is a separate keycap-shaped editor, not the uniform OpenRGB LED grid.
 struct VisualKey { std::uint8_t hid; const char* label; double units; };
+
+// Each key retains the mouse grab while dragging, even if the cursor crosses
+// other keys or blank layout space. All coordinates are mapped to the editor.
+class KeyButton : public QPushButton
+{
+public:
+    using MouseCallback = std::function<void(const QPoint&, Qt::KeyboardModifiers)>;
+    explicit KeyButton(const QString& label, QWidget* parent = nullptr)
+        : QPushButton(label, parent) {}
+    MouseCallback pressed_at;
+    MouseCallback moved_at;
+    MouseCallback released_at;
+protected:
+    void mousePressEvent(QMouseEvent* e) override
+    {
+        if(e->button() == Qt::LeftButton && pressed_at)
+        {
+            pressed_at(e->pos(), e->modifiers());
+            e->accept();
+            return;
+        }
+        QPushButton::mousePressEvent(e);
+    }
+    void mouseMoveEvent(QMouseEvent* e) override
+    {
+        if((e->buttons() & Qt::LeftButton) && moved_at)
+        {
+            moved_at(e->pos(), e->modifiers());
+            e->accept();
+            return;
+        }
+        QPushButton::mouseMoveEvent(e);
+    }
+    void mouseReleaseEvent(QMouseEvent* e) override
+    {
+        if(e->button() == Qt::LeftButton && released_at)
+        {
+            released_at(e->pos(), e->modifiers());
+            e->accept();
+            return;
+        }
+        QPushButton::mouseReleaseEvent(e);
+    }
+};
 
 class KeyboardEditor : public QWidget
 {
 public:
-    using ApplyColor = std::function<bool(std::uint8_t, const QColor&)>;
+    using ApplyColor = std::function<bool(const std::vector<std::uint8_t>&, const QColor&)>;
     explicit KeyboardEditor(ApplyColor apply, QWidget* parent = nullptr)
         : QWidget(parent), apply_(std::move(apply))
     {
@@ -37,8 +84,9 @@ public:
         main->addWidget(heading);
 
         auto* note = new QLabel(QStringLiteral(
-            "Choose a key, then set its color. Changes apply in Direct mode. "
-            "Keycap dimensions follow the photographed ANSI layout; the SteelSeries key HID is provisional."));
+            "Drag across keycaps to select a rectangle. Click for one key; "
+            "Ctrl-click toggles keys, Ctrl-drag adds keys. Choose a color to apply "
+            "to the whole selection in Direct mode."));
         note->setWordWrap(true);
         main->addWidget(note);
 
@@ -48,24 +96,56 @@ public:
             line->setSpacing(4);
             for(const auto& key : keys)
             {
-                auto* button = new QPushButton(QString::fromUtf8(key.label));
+                auto* button = new KeyButton(QString::fromUtf8(key.label));
                 button->setToolTip(QStringLiteral("HID %1").arg(key.hid));
                 button->setMinimumHeight(43);
-                const int width = static_cast<int>(45.0 * key.units);
-                button->setMinimumWidth(width);
+                button->setMinimumWidth(static_cast<int>(45.0 * key.units));
                 button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
                 line->addWidget(button, static_cast<int>(key.units * 100));
-                connect(button, &QPushButton::clicked, this, [this, button, key]()
+                buttons_.push_back({key.hid, button});
+                button->pressed_at = [this, button, key](const QPoint& pos, Qt::KeyboardModifiers modifiers)
                 {
-                    if(selected_button_)
-                        selected_button_->setStyleSheet(QString());
-                    selected_button_ = button;
-                    selected_ = key.hid;
-                    button->setStyleSheet(QStringLiteral(
-                        "QPushButton { border: 2px solid #35baff; background-color: #23475d; }"));
-                    selection_->setText(QStringLiteral("Selected: %1 (HID %2)")
-                        .arg(QString::fromUtf8(key.label)).arg(key.hid));
-                });
+                    drag_origin_ = button->mapTo(this, pos);
+                    drag_modifiers_ = modifiers;
+                    pressed_hid_ = key.hid;
+                    baseline_ = selected_;
+                    dragging_ = false;
+                    mouse_pressed_ = true;
+                };
+                button->moved_at = [this, button](const QPoint& pos, Qt::KeyboardModifiers)
+                {
+                    if(!mouse_pressed_) return;
+                    const QPoint end = button->mapTo(this, pos);
+                    if(!dragging_ && (end - drag_origin_).manhattanLength() < 6) return;
+                    dragging_ = true;
+                    const QRect bounds = QRect(drag_origin_, end).normalized();
+                    rubber_band_->setGeometry(bounds);
+                    rubber_band_->show();
+                    selected_ = (drag_modifiers_ & Qt::ControlModifier) ? baseline_ : QSet<std::uint8_t>{};
+                    for(const auto& item : buttons_)
+                    {
+                        const QRect key_rect(item.second->mapTo(this, QPoint(0, 0)), item.second->size());
+                        if(bounds.intersects(key_rect))
+                            selected_.insert(item.first);
+                    }
+                    updateSelection();
+                };
+                button->released_at = [this](const QPoint&, Qt::KeyboardModifiers)
+                {
+                    if(!mouse_pressed_) return;
+                    mouse_pressed_ = false;
+                    rubber_band_->hide();
+                    if(!dragging_)
+                    {
+                        selected_ = (drag_modifiers_ & Qt::ControlModifier) ? baseline_ : QSet<std::uint8_t>{};
+                        if((drag_modifiers_ & Qt::ControlModifier) && selected_.contains(pressed_hid_))
+                            selected_.remove(pressed_hid_);
+                        else
+                            selected_.insert(pressed_hid_);
+                    }
+                    dragging_ = false;
+                    updateSelection();
+                };
             }
             main->addLayout(line);
         };
@@ -96,36 +176,76 @@ public:
             {240,"SteelSeries",1.25},{228,"Ctrl",1.25}
         });
 
+
+        rubber_band_ = new QRubberBand(QRubberBand::Rectangle, this);
+        rubber_band_->setAttribute(Qt::WA_TransparentForMouseEvents);
+
         auto* tools = new QHBoxLayout();
-        selection_ = new QLabel(QStringLiteral("Selected: none"));
-        tools->addWidget(selection_, 1);
-        auto* choose = new QPushButton(QStringLiteral("Set selected key color…"));
+        selection_label_ = new QLabel(QStringLiteral("Selected: 0 keys"));
+        tools->addWidget(selection_label_, 1);
+        auto* select_all = new QPushButton(QStringLiteral("Select All"));
+        tools->addWidget(select_all);
+        connect(select_all, &QPushButton::clicked, this, [this]()
+        {
+            selected_.clear();
+            for(const auto& item : buttons_) selected_.insert(item.first);
+            updateSelection();
+        });
+        auto* clear = new QPushButton(QStringLiteral("Clear Selection"));
+        tools->addWidget(clear);
+        connect(clear, &QPushButton::clicked, this, [this]()
+        {
+            selected_.clear();
+            updateSelection();
+        });
+        auto* choose = new QPushButton(QStringLiteral("Set selected keys color…"));
         tools->addWidget(choose);
         main->addLayout(tools);
         auto* footer = new QLabel(QStringLiteral(
-            "The seven regional/firmware-only HID addresses remain accessible "
-            "through OpenRGB's standard LED list."));
+            "The seven additional regional/firmware HID addresses remain accessible "
+            "through OpenRGB's standard LED list. SteelSeries key HID is provisional."));
         footer->setWordWrap(true);
         main->addWidget(footer);
         connect(choose, &QPushButton::clicked, this, [this]()
         {
-            if(!selected_button_) return;
-            const QColor color = QColorDialog::getColor(Qt::blue, this, QStringLiteral("Key color"));
-            if(color.isValid() && apply_)
-            {
-                const bool applied = apply_(selected_, color);
-                selection_->setText(applied
-                    ? QStringLiteral("Applied color to HID %1").arg(selected_)
-                    : QStringLiteral("Cannot apply: select Direct mode and verify device connection"));
-            }
+            if(selected_.isEmpty()) return;
+            const QColor color = QColorDialog::getColor(Qt::blue, this, QStringLiteral("Selected keys color"));
+            if(!color.isValid() || !apply_) return;
+            std::vector<std::uint8_t> selected_hids;
+            // Use stable visual-order selection so the output is predictable.
+            for(const auto& item : buttons_)
+                if(selected_.contains(item.first)) selected_hids.push_back(item.first);
+            const bool applied = apply_(selected_hids, color);
+            selection_label_->setText(applied
+                ? QStringLiteral("Applied color to %1 keys").arg(selected_hids.size())
+                : QStringLiteral("Cannot apply: select Direct mode and verify device connection"));
         });
+        updateSelection();
         setMinimumWidth(820);
     }
 
 private:
+    void updateSelection()
+    {
+        for(const auto& item : buttons_)
+        {
+            item.second->setStyleSheet(selected_.contains(item.first)
+                ? QStringLiteral("QPushButton { border: 2px solid #35baff; background-color: #23475d; }")
+                : QString());
+        }
+        selection_label_->setText(QStringLiteral("Selected: %1 keys").arg(selected_.size()));
+    }
+
     ApplyColor apply_;
-    QLabel* selection_ = nullptr;
-    QPushButton* selected_button_ = nullptr;
-    std::uint8_t selected_ = 0;
+    std::vector<std::pair<std::uint8_t, KeyButton*>> buttons_;
+    QSet<std::uint8_t> selected_;
+    QSet<std::uint8_t> baseline_;
+    QLabel* selection_label_ = nullptr;
+    QRubberBand* rubber_band_ = nullptr;
+    QPoint drag_origin_;
+    Qt::KeyboardModifiers drag_modifiers_{};
+    std::uint8_t pressed_hid_ = 0;
+    bool dragging_ = false;
+    bool mouse_pressed_ = false;
 };
 } // namespace apex_mini
