@@ -14,9 +14,18 @@ int main()
         assert(idx < key_count && !visited[idx]);
         visited[idx] = true;
     }
-    for(bool included : visited) assert(included);
-    static_assert(layout_rows == 5 && layout_columns == 16, "compact keyboard grid expected");
-    const std::array<unsigned int, layout_rows> expected_row_leds{{15, 14, 14, 14, 11}};
+    unsigned int displayed = 0;
+    for(bool included : visited) if(included) ++displayed;
+    assert(displayed == physical_key_count);
+    for(auto hid : variant_usages)
+    {
+        unsigned int idx = key_count;
+        for(unsigned int i = 0; i < key_count; ++i)
+            if(hid_codes[i] == hid) { idx = i; break; }
+        assert(idx < key_count && !visited[idx]);
+    }
+    static_assert(layout_rows == 5 && layout_columns == 15, "photo-based keyboard grid expected");
+    const std::array<unsigned int, layout_rows> expected_row_leds{{14, 14, 13, 12, 8}};
     for(unsigned int row = 0; row < layout_rows; ++row)
     {
         unsigned int count = 0;
