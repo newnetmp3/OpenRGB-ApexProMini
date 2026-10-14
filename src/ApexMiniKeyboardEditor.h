@@ -1,8 +1,12 @@
 #pragma once
 
 #include "apex_pro_mini_protocol.h"
+#include "apex_pro_mini_effects.h"
 #include <QColor>
 #include <QColorDialog>
+#include <QComboBox>
+#include <QElapsedTimer>
+#include <QSlider>
 #include <QTimer>
 #include <QFont>
 #include <QHBoxLayout>
@@ -75,8 +79,9 @@ class KeyboardEditor : public QWidget
 public:
     using ApplyColor = std::function<bool(const std::vector<std::uint8_t>&, const QColor&)>;
     using ReadColor = std::function<QColor(std::uint8_t)>;
-    explicit KeyboardEditor(ApplyColor apply, ReadColor read, QWidget* parent = nullptr)
-        : QWidget(parent), apply_(std::move(apply)), read_(std::move(read))
+    using ApplyFrame = std::function<bool(const std::vector<KeyColor>&)>;
+    explicit KeyboardEditor(ApplyColor apply, ReadColor read, ApplyFrame frame, QWidget* parent = nullptr)
+        : QWidget(parent), apply_(std::move(apply)), read_(std::move(read)), frame_(std::move(frame))
     {
         auto* main = new QVBoxLayout(this);
         main->setSpacing(9);
@@ -230,11 +235,66 @@ public:
             // Use stable visual-order selection so the output is predictable.
             for(const auto& item : buttons_)
                 if(selected_.contains(item.first)) selected_hids.push_back(item.first);
+            // A manual color operation takes precedence over running animation.
+            if(effect_timer_) effect_timer_->stop();
+            if(effect_combo_) effect_combo_->setCurrentIndex(0);
             const bool applied = apply_(selected_hids, color);
             if(applied) refreshPreview();
             selection_label_->setText(applied
                 ? QStringLiteral("Applied color to %1 keys").arg(selected_hids.size())
                 : QStringLiteral("Cannot apply: select Direct mode and verify device connection"));
+        });
+        auto* fx = new QHBoxLayout();
+        fx->addWidget(new QLabel(QStringLiteral("Animation")));
+        auto* effect_box = new QComboBox();
+        effect_box->addItem(QStringLiteral("Off"), static_cast<int>(Effect::Off));
+        effect_box->addItem(QStringLiteral("Rainbow"), static_cast<int>(Effect::Rainbow));
+        effect_box->addItem(QStringLiteral("Color Wave"), static_cast<int>(Effect::Wave));
+        effect_box->addItem(QStringLiteral("Breathing"), static_cast<int>(Effect::Breathing));
+        fx->addWidget(effect_box, 1);
+        effect_combo_ = effect_box;
+        fx->addWidget(new QLabel(QStringLiteral("Speed")));
+        auto* speed_slider = new QSlider(Qt::Horizontal);
+        speed_slider->setMinimum(25);
+        speed_slider->setMaximum(300);
+        speed_slider->setValue(100);
+        speed_slider->setToolTip(QStringLiteral("0.25x – 3.0x"));
+        fx->addWidget(speed_slider, 1);
+        auto* stop = new QPushButton(QStringLiteral("Stop effect"));
+        fx->addWidget(stop);
+        main->addLayout(fx);
+
+        effect_timer_ = new QTimer(this);
+        effect_timer_->setInterval(50); // 20 frames/s, avoiding excess HID traffic
+        connect(effect_timer_, &QTimer::timeout, this, [this, effect_box, speed_slider]()
+        {
+            if(!frame_) return;
+            const auto effect = static_cast<Effect>(effect_box->currentData().toInt());
+            if(effect == Effect::Off) return;
+            const double seconds = effect_clock_.elapsed() / 1000.0;
+            if(!frame_(effect_frame(effect, seconds, speed_slider->value() / 100.0)))
+            {
+                effect_timer_->stop();
+                effect_box->setCurrentIndex(0);
+                selection_label_->setText(QStringLiteral(
+                    "Effect stopped: choose Direct mode and verify device connection"));
+                return;
+            }
+            refreshPreview();
+        });
+        connect(effect_box, QOverload<int>::of(&QComboBox::currentIndexChanged),
+                this, [this, effect_box](int index)
+        {
+            effect_timer_->stop();
+            if(index != 0)
+            {
+                effect_clock_.start();
+                effect_timer_->start();
+            }
+        });
+        connect(stop, &QPushButton::clicked, this, [effect_box]()
+        {
+            effect_box->setCurrentIndex(0);
         });
         preview_timer_ = new QTimer(this);
         preview_timer_->setInterval(150);
@@ -292,6 +352,10 @@ private:
 
     ApplyColor apply_;
     ReadColor read_;
+    ApplyFrame frame_;
+    QComboBox* effect_combo_ = nullptr;
+    QTimer* effect_timer_ = nullptr;
+    QElapsedTimer effect_clock_;
     QTimer* preview_timer_ = nullptr;
     QHash<std::uint8_t, QColor> preview_colors_;
     std::vector<std::pair<std::uint8_t, KeyButton*>> buttons_;
