@@ -2,6 +2,9 @@
 
 #include "apex_pro_mini_protocol.h"
 #include "apex_pro_mini_catalog.h"
+#ifdef __linux__
+#include "ApexMiniPhysicalInput.h"
+#endif
 #include <QColor>
 #include <QColorDialog>
 #include <QComboBox>
@@ -325,6 +328,35 @@ public:
         {
             effect_box->setCurrentIndex(0);
         });
+#ifdef __linux__
+        auto* physical_controls = new QHBoxLayout();
+        auto* physical_toggle = new QPushButton(QStringLiteral("Enable physical keypress reactions"));
+        physical_toggle->setCheckable(true);
+        physical_controls->addWidget(physical_toggle);
+        physical_status_ = new QLabel(QStringLiteral("Physical keypress monitoring: off"));
+        physical_status_->setWordWrap(true);
+        physical_controls->addWidget(physical_status_, 1);
+        main->addLayout(physical_controls);
+        physical_input_ = new PhysicalKeyInput(this);
+        connect(physical_toggle, &QPushButton::toggled, this,
+                [this, physical_toggle](bool enabled)
+        {
+            if(!enabled)
+            {
+                physical_input_->stop();
+                physical_status_->setText(QStringLiteral("Physical keypress monitoring: off"));
+                return;
+            }
+            const QString status = physical_input_->start([this](std::uint8_t hid)
+            {
+                if(effect_timer_ && effect_timer_->isActive())
+                    hits_.push_back({hid, effect_clock_.elapsed() / 1000.0});
+            });
+            physical_status_->setText(status);
+            if(!physical_input_->active())
+                physical_toggle->setChecked(false);
+        });
+#endif
         preview_timer_ = new QTimer(this);
         preview_timer_->setInterval(150);
         connect(preview_timer_, &QTimer::timeout, this, [this]()
@@ -386,6 +418,10 @@ private:
     QTimer* effect_timer_ = nullptr;
     QElapsedTimer effect_clock_;
     std::vector<KeyHit> hits_;
+#ifdef __linux__
+    PhysicalKeyInput* physical_input_ = nullptr;
+    QLabel* physical_status_ = nullptr;
+#endif
     QTimer* preview_timer_ = nullptr;
     QHash<std::uint8_t, QColor> preview_colors_;
     std::vector<std::pair<std::uint8_t, KeyButton*>> buttons_;
