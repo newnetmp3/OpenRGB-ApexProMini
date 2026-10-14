@@ -2,13 +2,12 @@
 #include <QObject>
 #include <OpenRGBPluginInterface.h>
 #include <hidapi.h>
-#include <memory>
 #include <mutex>
 
 class ApexProMiniPlugin final : public QObject, public OpenRGBPluginInterface
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID OpenRGBPluginInterface_IID)
+    Q_PLUGIN_METADATA(IID "org.openrgb.OpenRGBPluginInterface")
     Q_INTERFACES(OpenRGBPluginInterface)
 public:
     OpenRGBPluginInfo GetPluginInfo() override;
