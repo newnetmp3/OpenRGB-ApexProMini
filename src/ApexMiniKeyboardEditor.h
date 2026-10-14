@@ -1,7 +1,7 @@
 #pragma once
 
 #include "apex_pro_mini_protocol.h"
-#include "apex_pro_mini_effects.h"
+#include "apex_pro_mini_catalog.h"
 #include <QColor>
 #include <QColorDialog>
 #include <QComboBox>
@@ -117,6 +117,13 @@ public:
                     drag_origin_ = button->mapTo(this, pos);
                     drag_modifiers_ = modifiers;
                     pressed_hid_ = key.hid;
+                    // Reactive modes are demonstrated using clicks in this editor.
+                    // This does not capture global keyboard or evdev events.
+                    if(effect_combo_ && effect_timer_ && effect_timer_->isActive())
+                    {
+                        const double when = effect_clock_.elapsed() / 1000.0;
+                        hits_.push_back({key.hid, when});
+                    }
                     baseline_ = selected_;
                     dragging_ = false;
                     mouse_pressed_ = true;
@@ -255,6 +262,20 @@ public:
         effect_box->addItem(QStringLiteral("Color Shift"), static_cast<int>(Effect::ColorShift));
         effect_box->addItem(QStringLiteral("Comet"), static_cast<int>(Effect::Comet));
         effect_box->addItem(QStringLiteral("Sparkle"), static_cast<int>(Effect::Sparkle));
+        effect_box->addItem(QStringLiteral("Solid"), 12);
+        effect_box->addItem(QStringLiteral("Ripple (click-reactive)"), 8);
+        effect_box->addItem(QStringLiteral("Reactive (click-reactive)"), 9);
+        effect_box->addItem(QStringLiteral("Rainbow Split"), 10);
+        effect_box->addItem(QStringLiteral("Prismatic Sweep"), 11);
+        effect_box->addItem(QStringLiteral("Heatmap (click-reactive)"), 13);
+        effect_box->addItem(QStringLiteral("Reactive Line (click-reactive)"), 14);
+        effect_box->insertSeparator(effect_box->count());
+        for(std::size_t i=0; i<factory_presets.size(); ++i)
+        {
+            const auto& preset = factory_presets[i];
+            effect_box->addItem(QStringLiteral("Prism-style: ") + QString::fromLatin1(preset.id),
+                                factory_effect_base + static_cast<int>(i));
+        }
         fx->addWidget(effect_box, 1);
         effect_combo_ = effect_box;
         fx->addWidget(new QLabel(QStringLiteral("Speed")));
@@ -276,7 +297,10 @@ public:
             const auto effect = static_cast<Effect>(effect_box->currentData().toInt());
             if(effect == Effect::Off) return;
             const double seconds = effect_clock_.elapsed() / 1000.0;
-            if(!frame_(effect_frame(effect, seconds, speed_slider->value() / 100.0)))
+            hits_.erase(std::remove_if(hits_.begin(), hits_.end(),
+                [seconds](const KeyHit& hit) { return seconds - hit.when > 2.5; }), hits_.end());
+            if(!frame_(full_effect_frame(static_cast<int>(effect), seconds,
+                     speed_slider->value() / 100.0, hits_)))
             {
                 effect_timer_->stop();
                 effect_box->setCurrentIndex(0);
@@ -290,6 +314,7 @@ public:
                 this, [this, effect_box](int index)
         {
             effect_timer_->stop();
+            hits_.clear();
             if(index != 0)
             {
                 effect_clock_.start();
@@ -360,6 +385,7 @@ private:
     QComboBox* effect_combo_ = nullptr;
     QTimer* effect_timer_ = nullptr;
     QElapsedTimer effect_clock_;
+    std::vector<KeyHit> hits_;
     QTimer* preview_timer_ = nullptr;
     QHash<std::uint8_t, QColor> preview_colors_;
     std::vector<std::pair<std::uint8_t, KeyButton*>> buttons_;
