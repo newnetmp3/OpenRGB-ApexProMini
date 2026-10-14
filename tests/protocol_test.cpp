@@ -15,6 +15,17 @@ int main()
         visited[idx] = true;
     }
     for(bool included : visited) assert(included);
+    static_assert(layout_rows == 5 && layout_columns == 16, "compact keyboard grid expected");
+    const std::array<unsigned int, layout_rows> expected_row_leds{{15, 14, 14, 14, 11}};
+    for(unsigned int row = 0; row < layout_rows; ++row)
+    {
+        unsigned int count = 0;
+        for(unsigned int col = 0; col < layout_columns; ++col)
+            if(matrix[row * layout_columns + col] != unmapped) ++count;
+        assert(count == expected_row_leds[row]);
+    }
+    assert(matrix[4 * layout_columns + 7] != unmapped);
+    assert(hid_codes[matrix[4 * layout_columns + 7]] == 44);
     assert(key_label(4) == "A" && key_label(44) == "Space");
     static_assert(hid_codes.size() == 68, "68 HID keys required");
     assert(supported(4) && supported(41) && !supported(0));
