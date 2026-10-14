@@ -125,7 +125,12 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
                     {
                         // "steelseriesOrange" was a no-stop preset in the
                         // migration data; use a named fallback, "disabled" is off.
-                        color = effect == factory_effect_base ? Color{255,95,0} : Color{0,0,0};
+                        if(effect == factory_effect_base)
+                            color = {255,95,0};
+                        else if(effect == factory_effect_base+29)
+                            color = lerp({6,12,25}, {255,68,0},
+                                hit_intensity(13,hid,x,y,seconds,speed,hits));
+                        else color = {0,0,0};
                     }
                     else
                     {
