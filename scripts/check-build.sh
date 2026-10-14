@@ -13,6 +13,7 @@ if [[ "${1:-}" == "--plugin" ]]; then
     fi
     cmake -S . -B build-plugin -DBUILD_OPENRGB_PLUGIN=ON \
         -DOPENRGB_SOURCE_DIR="$OPENRGB_SOURCE_DIR" \
+        -DOPENRGB_QT_MAJOR="${OPENRGB_QT_MAJOR:-5}" \
         -DCMAKE_BUILD_TYPE=Debug
     cmake --build build-plugin --parallel
     ctest --test-dir build-plugin --output-on-failure
