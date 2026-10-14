@@ -6,6 +6,10 @@ int main()
 {
     using namespace apex_mini;
     static_assert(factory_presets.size() == 31, "Historical catalog contains 31 entries");
+    static_assert(region_variants.size() == 36, "36 historical regional variants");
+    assert(region_for("pride",0.25,0) != nullptr);
+    assert(region_for("pride",0.25,4) != nullptr);
+    assert(region_for("prism",0.25,2) == nullptr);
     static_assert(key_count == 68, "Wired Mini exposes 68 HID usages");
     for(int mode = 0; mode <= last_basic_effect; ++mode)
     {
