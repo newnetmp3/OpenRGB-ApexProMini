@@ -11,28 +11,20 @@ namespace apex_mini
 // Provisional ANSI-like presentation only: physical coordinates and regional
 // variants still require on-device validation. This does NOT change HID writes.
 constexpr unsigned int layout_rows = 5;
-constexpr unsigned int layout_columns = 32;
+constexpr unsigned int layout_columns = 16;
 constexpr unsigned int unmapped = 0xFFFFFFFFu;
 
 struct Placement { std::uint8_t usage; unsigned int row; unsigned int column; };
-// Grid columns approximate half-key increments, with nearby spare cells used
-// to display regional/firmware alternative usage IDs distinctly.
+// OpenRGB's native matrix paints uniform square LED cells. Keep the 68 LEDs
+// in five compact rows instead of showing a sparse 32-column checkerboard.
+// Alternative firmware/ISO usages remain visible as their own cells; no claim
+// is made that these represent 68 independent physical keycaps.
 constexpr std::array<Placement, key_count> positions = {{
-    {41,0,1},{30,0,3},{31,0,5},{32,0,7},{33,0,9},{34,0,11},
-    {35,0,13},{36,0,15},{37,0,17},{38,0,19},{39,0,21},
-    {45,0,23},{46,0,25},{137,0,27},{42,0,29},
-    {43,1,2},{20,1,4},{26,1,6},{8,1,8},{21,1,10},{23,1,12},
-    {28,1,14},{24,1,16},{12,1,18},{18,1,20},{19,1,22},
-    {47,1,24},{48,1,26},{49,1,29},
-    {57,2,2},{4,2,5},{22,2,7},{7,2,9},{9,2,11},{10,2,13},
-    {11,2,15},{13,2,17},{14,2,19},{15,2,21},{51,2,23},
-    {52,2,25},{50,2,27},{40,2,29},
-    {225,3,2},{100,3,4},{29,3,6},{27,3,8},{6,3,10},{25,3,12},
-    {5,3,14},{17,3,16},{16,3,18},{54,3,20},{55,3,22},
-    {56,3,24},{135,3,27},{229,3,29},
-    {224,4,1},{227,4,4},{226,4,7},{139,4,9},{44,4,15},
-    {138,4,21},{136,4,23},{230,4,25},{231,4,27},
-    {240,4,29},{228,4,31}
+    {41,0,0},{30,0,1},{31,0,2},{32,0,3},{33,0,4},{34,0,5},{35,0,6},{36,0,7},{37,0,8},{38,0,9},{39,0,10},{45,0,11},{46,0,12},{137,0,13},{42,0,14},
+    {43,1,1},{20,1,2},{26,1,3},{8,1,4},{21,1,5},{23,1,6},{28,1,7},{24,1,8},{12,1,9},{18,1,10},{19,1,11},{47,1,12},{48,1,13},{49,1,14},
+    {57,2,1},{4,2,2},{22,2,3},{7,2,4},{9,2,5},{10,2,6},{11,2,7},{13,2,8},{14,2,9},{15,2,10},{51,2,11},{52,2,12},{50,2,13},{40,2,14},
+    {225,3,1},{100,3,2},{29,3,3},{27,3,4},{6,3,5},{25,3,6},{5,3,7},{17,3,8},{16,3,9},{54,3,10},{55,3,11},{56,3,12},{135,3,13},{229,3,14},
+    {224,4,0},{227,4,1},{226,4,2},{139,4,3},{44,4,7},{138,4,10},{136,4,11},{230,4,12},{231,4,13},{240,4,14},{228,4,15}
 }};
 
 inline std::array<unsigned int, layout_rows * layout_columns> keyboard_matrix()
