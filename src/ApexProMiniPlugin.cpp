@@ -1,5 +1,6 @@
 #include "ApexProMiniPlugin.h"
 #include "apex_pro_mini_protocol.h"
+#include "apex_pro_mini_layout.h"
 #include <vector>
 #include <string>
 #include <QLabel>
@@ -86,7 +87,10 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
 
     zone keyboard{};
     keyboard.name = "Keyboard";
-    keyboard.type = ZONE_TYPE_LINEAR;
+    keyboard.type = ZONE_TYPE_MATRIX;
+    const auto matrix = apex_mini::keyboard_matrix();
+    keyboard.matrix_map.Set(apex_mini::layout_rows, apex_mini::layout_columns,
+                            const_cast<unsigned int*>(matrix.data()));
     keyboard.leds_min = apex_mini::key_count;
     keyboard.leds_max = apex_mini::key_count;
     keyboard.leds_count = apex_mini::key_count;
@@ -94,7 +98,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
     for(const auto hid : apex_mini::hid_codes)
     {
         led key{};
-        key.name = "HID " + std::to_string(hid);
+        key.name = apex_mini::key_label(hid);
         key.value = hid;
         setup.leds.push_back(key);
     }
