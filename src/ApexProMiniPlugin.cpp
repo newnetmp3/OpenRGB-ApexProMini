@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <QLabel>
+#include "ApexMiniKeyboardEditor.h"
 
 OpenRGBPluginInfo ApexProMiniPlugin::GetPluginInfo()
 {
@@ -22,9 +23,21 @@ QWidget* ApexProMiniPlugin::GetWidget()
 {
     if(!widget_)
     {
-        auto* label = new QLabel(QStringLiteral("Apex Pro Mini USB RGB controller. Configure lighting in the Devices tab."));
-        label->setWordWrap(true);
-        widget_ = label;
+        widget_ = new apex_mini::KeyboardEditor([this](std::uint8_t hid, const QColor& color)
+        {
+            if(!controller_ || controller_->GetActiveMode() != 0)
+                return;
+            for(std::size_t i = 0; i < apex_mini::key_count; ++i)
+            {
+                if(apex_mini::hid_codes[i] == hid)
+                {
+                    controller_->SetColor(static_cast<unsigned int>(i),
+                        ToRGBColor(color.red(), color.green(), color.blue()));
+                    controller_->UpdateLEDs();
+                    break;
+                }
+            }
+        });
     }
     return widget_.data();
 }
