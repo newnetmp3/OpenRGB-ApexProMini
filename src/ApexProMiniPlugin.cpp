@@ -30,7 +30,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
         }
     }
     hid_free_enumeration(info);
-    if(!device_) return;
+    if(!device_)\n    {\n        hid_exit();\n        return;\n    }
 
     RGBController_Setup setup{};
     setup.name = "SteelSeries Apex Pro Mini (Plugin)";
@@ -73,7 +73,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
         setup.leds.push_back(key);
     }
     controller_ = api_->CreateVirtualRGBController(&setup);
-    if(controller_) api_->RegisterVirtualRGBController(controller_);
+    if(controller_)\n    {\n        api_->RegisterVirtualRGBController(controller_);\n    }\n    else\n    {\n        hid_close(device_);\n        device_ = nullptr;\n        hid_exit();\n    }
 }
 
 void ApexProMiniPlugin::UpdateLEDs(void* context)
