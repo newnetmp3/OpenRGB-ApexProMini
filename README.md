@@ -76,3 +76,7 @@ The native Qt5 OpenRGB runtime crashed in `QWidget::setParent` through `OpenRGBP
 ## Owner hardware verification — 2026-10-14
 
 On Arch Linux with a locally compiled Qt5 OpenRGB, the user confirmed the plugin loads, the Apex Pro Mini appears as an OpenRGB device, Direct mode successfully changes physical keyboard RGB colors, and Onboard restores the internal lighting. This confirms the initial device discovery, virtual-controller registration, RGB HID transport and release workflow on the owner's wired keyboard. This does **not** yet verify per-key visual matrix coordinates, all software effects, multiple attached keyboards, hotplug, or packaging.
+
+## Provisional keyboard matrix (2026-10-14)
+
+The device now exposes a 5-row by 32-column OpenRGB matrix with human-readable key names instead of a 68-LED linear zone. The map references the original 68 HID IDs by LED index, and encoding order is unchanged. Placement is an **ANSI-like approximation** with extra positions for firmware and ISO variants, not a validated manufacturer's geometry. Protocol tests verify matrix coverage, bounds, and uniqueness. Visual key placement and all RGB effects remain to be validated on the owner's device.
