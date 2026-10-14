@@ -82,7 +82,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
     for(const auto hid : apex_mini::hid_codes)
     {
         led key{};
-        key.name = "HID " + std::to_string(hid);
+        key.name = "HID " + std::to_string(hid);\n        key.value = hid;
         setup.leds.push_back(key);
     }
     controller_ = api_->CreateVirtualRGBController(&setup);
