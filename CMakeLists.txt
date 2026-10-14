@@ -38,7 +38,7 @@ if(BUILD_OPENRGB_PLUGIN)
         "${OPENRGB_SOURCE_DIR}/RGBController"
         "${OPENRGB_SOURCE_DIR}/dependencies"
     )
-    target_link_libraries(OpenRGB_ApexProMini PRIVATE Qt6::Core Qt${OPENRGB_QT_MAJOR}::Widgets PkgConfig::HIDAPI)
+    target_link_libraries(OpenRGB_ApexProMini PRIVATE Qt${OPENRGB_QT_MAJOR}::Core Qt${OPENRGB_QT_MAJOR}::Widgets PkgConfig::HIDAPI)
     set_target_properties(OpenRGB_ApexProMini PROPERTIES PREFIX "" OUTPUT_NAME "OpenRGB-ApexProMini")
     add_test(NAME apex_plugin_metadata
         COMMAND apex_plugin_metadata_check $<TARGET_FILE:OpenRGB_ApexProMini>)
