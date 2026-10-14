@@ -20,8 +20,8 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
     api_ = api;
     if(hid_init() != 0) return;
     // Restrict to the vendor-defined control collection. Do not open the keyboard input endpoint.
-    for(hid_device_info* info = hid_enumerate(apex_mini::vendor_id, apex_mini::product_id), *it = info;
-        it != nullptr; it = it->next)
+    hid_device_info* info = hid_enumerate(apex_mini::vendor_id, apex_mini::product_id);
+    for(hid_device_info* it = info; it != nullptr; it = it->next)
     {
         if(it->interface_number == 1 && it->usage_page == 0xFFC0 && it->usage == 1)
         {
@@ -29,7 +29,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
             break;
         }
     }
-    // Note: enumeration list ownership is handled below in the follow-up cleanup.
+    hid_free_enumeration(info);
     if(!device_) return;
 
     RGBController_Setup setup{};
