@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.16)
+project(OpenRGB_ApexProMini_Protocol LANGUAGES CXX)
+enable_testing()
+add_executable(apex_pro_mini_protocol_test tests/protocol_test.cpp)
+target_include_directories(apex_pro_mini_protocol_test PRIVATE include)
+target_compile_features(apex_pro_mini_protocol_test PRIVATE cxx_std_17)
+add_test(NAME apex_pro_mini_protocol COMMAND apex_pro_mini_protocol_test)
