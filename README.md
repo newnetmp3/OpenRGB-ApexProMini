@@ -84,3 +84,7 @@ The device now exposes a 5-row by 32-column OpenRGB matrix with human-readable k
 ## Native matrix visual cleanup (2026-10-14)
 
 The first hardware screenshot showed a sparse 5×32 checkerboard of uniformly sized cells. A follow-up change packs the same 68 addressable HID usages into a 5×16 matrix, with a center-positioned Space LED. This is a **visual compactness fix**, not a true keycap-shaped rendering: OpenRGB's native LED grid still draws each key as an equal-sized rectangle, and variant usages are still included. Custom keyboard-shaped Qt graphics are a separate milestone. A real OpenRGB render of the new matrix is pending.
+
+## Photograph-matched physical keycaps (2026-10-14)
+
+The owner supplied a clear overhead photo of their wired ANSI Apex Pro Mini. The native OpenRGB visualization has been corrected to include **61 physical keycaps**, in rows of **14 / 14 / 13 / 12 / 8**. The bottom row is Ctrl, Windows, Alt, Space, Alt, Windows, SteelSeries-logo key, Ctrl. The firmware exposes 68 HID addresses; seven extra slots (137, 50, 100, 135, 139, 138, 136) remain controllable through the OpenRGB LED list / transport, but are not displayed as imaginary physical keys. The SteelSeries-logo key uses provisional HID 240 pending owner confirmation. The grid remains square-cell based: exact widths and offsets require the planned custom Qt keyboard widget. **The new grid and individual key mapping are not yet tested on hardware.**
