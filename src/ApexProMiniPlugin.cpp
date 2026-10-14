@@ -54,6 +54,21 @@ QWidget* ApexProMiniPlugin::GetWidget()
             }
             controller_->UpdateLEDs();
             return true;
+        }, [this](std::uint8_t hid) -> QColor
+        {
+            if(!controller_ || !device_ || controller_->GetActiveMode() != 0)
+                return QColor();
+            for(std::size_t i = 0; i < apex_mini::key_count; ++i)
+            {
+                if(apex_mini::hid_codes[i] == hid)
+                {
+                    const RGBColor rgb = controller_->GetColor(static_cast<unsigned int>(i));
+                    return QColor(static_cast<int>(RGBGetRValue(rgb)),
+                                  static_cast<int>(RGBGetGValue(rgb)),
+                                  static_cast<int>(RGBGetBValue(rgb)));
+                }
+            }
+            return QColor();
         });
     }
     return widget_.data();
