@@ -1,10 +1,21 @@
 #include "apex_pro_mini_protocol.h"
+#include "apex_pro_mini_layout.h"
 #include <cassert>
 #include <stdexcept>
 
 int main()
 {
     using namespace apex_mini;
+    const auto matrix = keyboard_matrix();
+    std::array<bool, key_count> visited{};
+    for(auto idx : matrix)
+    {
+        if(idx == unmapped) continue;
+        assert(idx < key_count && !visited[idx]);
+        visited[idx] = true;
+    }
+    for(bool included : visited) assert(included);
+    assert(key_label(4) == "A" && key_label(44) == "Space");
     static_assert(hid_codes.size() == 68, "68 HID keys required");
     assert(supported(4) && supported(41) && !supported(0));
     const auto frame = encode_direct({{4, {255, 0, 0}}, {22, {0, 255, 0}}});
