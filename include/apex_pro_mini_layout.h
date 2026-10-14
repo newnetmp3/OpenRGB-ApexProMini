@@ -8,23 +8,38 @@
 
 namespace apex_mini
 {
-// Provisional ANSI-like presentation only: physical coordinates and regional
-// variants still require on-device validation. This does NOT change HID writes.
+// Owner-provided photo: physical ANSI keyboard with 61 visible keycaps.
+// The firmware exposes 68 RGB HID addresses; seven represent variants / extra
+// slots and must NOT be drawn as additional keycaps on this keyboard.
+// The native OpenRGB grid cannot represent different keycap widths.
 constexpr unsigned int layout_rows = 5;
-constexpr unsigned int layout_columns = 16;
+constexpr unsigned int layout_columns = 15;
 constexpr unsigned int unmapped = 0xFFFFFFFFu;
+constexpr std::size_t physical_key_count = 61;
 
 struct Placement { std::uint8_t usage; unsigned int row; unsigned int column; };
-// OpenRGB's native matrix paints uniform square LED cells. Keep the 68 LEDs
-// in five compact rows instead of showing a sparse 32-column checkerboard.
-// Alternative firmware/ISO usages remain visible as their own cells; no claim
-// is made that these represent 68 independent physical keycaps.
-constexpr std::array<Placement, key_count> positions = {{
-    {41,0,0},{30,0,1},{31,0,2},{32,0,3},{33,0,4},{34,0,5},{35,0,6},{36,0,7},{37,0,8},{38,0,9},{39,0,10},{45,0,11},{46,0,12},{137,0,13},{42,0,14},
-    {43,1,1},{20,1,2},{26,1,3},{8,1,4},{21,1,5},{23,1,6},{28,1,7},{24,1,8},{12,1,9},{18,1,10},{19,1,11},{47,1,12},{48,1,13},{49,1,14},
-    {57,2,1},{4,2,2},{22,2,3},{7,2,4},{9,2,5},{10,2,6},{11,2,7},{13,2,8},{14,2,9},{15,2,10},{51,2,11},{52,2,12},{50,2,13},{40,2,14},
-    {225,3,1},{100,3,2},{29,3,3},{27,3,4},{6,3,5},{25,3,6},{5,3,7},{17,3,8},{16,3,9},{54,3,10},{55,3,11},{56,3,12},{135,3,13},{229,3,14},
-    {224,4,0},{227,4,1},{226,4,2},{139,4,3},{44,4,7},{138,4,10},{136,4,11},{230,4,12},{231,4,13},{240,4,14},{228,4,15}
+constexpr std::array<Placement, physical_key_count> positions = {{
+    // Esc through Backspace: 14 physical keys.
+    {41,0,0},{30,0,1},{31,0,2},{32,0,3},{33,0,4},{34,0,5},{35,0,6},
+    {36,0,7},{37,0,8},{38,0,9},{39,0,10},{45,0,11},{46,0,12},{42,0,13},
+    // Tab, QWERTY, brackets, backslash: 14.
+    {43,1,0},{20,1,1},{26,1,2},{8,1,3},{21,1,4},{23,1,5},{28,1,6},
+    {24,1,7},{12,1,8},{18,1,9},{19,1,10},{47,1,11},{48,1,12},{49,1,13},
+    // Caps, ASDF, punctuation, Enter: 13.
+    {57,2,0},{4,2,1},{22,2,2},{7,2,3},{9,2,4},{10,2,5},{11,2,6},
+    {13,2,7},{14,2,8},{15,2,9},{51,2,10},{52,2,11},{40,2,12},
+    // Both shifts, ZXCV, comma, period, slash: 12.
+    {225,3,0},{29,3,1},{27,3,2},{6,3,3},{25,3,4},{5,3,5},
+    {17,3,6},{16,3,7},{54,3,8},{55,3,9},{56,3,10},{229,3,11},
+    // Ctrl / Win / Alt / Space / Alt / Win / SteelSeries / Ctrl: 8.
+    {224,4,0},{227,4,1},{226,4,2},{44,4,7},
+    {230,4,10},{231,4,11},{240,4,12},{228,4,13}
+}};
+
+// These firmware/ISO usages are intentionally absent from the 61-key image;
+// they remain separate addressable LEDs in OpenRGB's dropdown and transport.
+constexpr std::array<std::uint8_t, key_count - physical_key_count> variant_usages = {{
+    137, 50, 100, 135, 139, 138, 136
 }};
 
 inline std::array<unsigned int, layout_rows * layout_columns> keyboard_matrix()
@@ -46,8 +61,17 @@ inline std::array<unsigned int, layout_rows * layout_columns> keyboard_matrix()
         seen[led_index] = true;
         map[cell] = static_cast<unsigned int>(led_index);
     }
+    for(const auto hid : variant_usages)
+    {
+        std::size_t idx = key_count;
+        for(std::size_t i = 0; i < key_count; ++i)
+            if(hid_codes[i] == hid) { idx = i; break; }
+        if(idx == key_count || seen[idx])
+            throw std::logic_error("variant usage overlaps physical matrix");
+        seen[idx] = true;
+    }
     for(bool value : seen)
-        if(!value) throw std::logic_error("unmapped keyboard LED");
+        if(!value) throw std::logic_error("missing physical or variant LED");
     return map;
 }
 
@@ -65,7 +89,7 @@ inline std::string key_label(std::uint8_t usage)
         case 50: return "Non-US Hash"; case 137: return "Alternate Backspace";
         case 135: return "Alternate Shift"; case 139: return "International 4";
         case 138: return "International 3"; case 136: return "International 1";
-        case 240: return "Keyboard LANG 1";
+        case 240: return "SteelSeries Key (provisional HID)";
         default: break;
     }
     if(usage >= 4 && usage <= 29) return std::string(1, static_cast<char>('A' + usage - 4));
