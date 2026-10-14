@@ -251,6 +251,10 @@ public:
         effect_box->addItem(QStringLiteral("Rainbow"), static_cast<int>(Effect::Rainbow));
         effect_box->addItem(QStringLiteral("Color Wave"), static_cast<int>(Effect::Wave));
         effect_box->addItem(QStringLiteral("Breathing"), static_cast<int>(Effect::Breathing));
+        effect_box->addItem(QStringLiteral("Gradient"), static_cast<int>(Effect::Gradient));
+        effect_box->addItem(QStringLiteral("Color Shift"), static_cast<int>(Effect::ColorShift));
+        effect_box->addItem(QStringLiteral("Comet"), static_cast<int>(Effect::Comet));
+        effect_box->addItem(QStringLiteral("Sparkle"), static_cast<int>(Effect::Sparkle));
         fx->addWidget(effect_box, 1);
         effect_combo_ = effect_box;
         fx->addWidget(new QLabel(QStringLiteral("Speed")));
