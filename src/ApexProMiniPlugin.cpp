@@ -23,21 +23,37 @@ QWidget* ApexProMiniPlugin::GetWidget()
 {
     if(!widget_)
     {
-        widget_ = new apex_mini::KeyboardEditor([this](std::uint8_t hid, const QColor& color)
+        widget_ = new apex_mini::KeyboardEditor([this](const std::vector<std::uint8_t>& hids, const QColor& color)
         {
-            if(!controller_ || !device_ || controller_->GetActiveMode() != 0)
+            if(!controller_ || !device_ || controller_->GetActiveMode() != 0 || hids.empty())
                 return false;
-            for(std::size_t i = 0; i < apex_mini::key_count; ++i)
+            for(const auto hid : hids)
             {
-                if(apex_mini::hid_codes[i] == hid)
+                bool found = false;
+                for(std::size_t i = 0; i < apex_mini::key_count; ++i)
                 {
-                    controller_->SetColor(static_cast<unsigned int>(i),
-                        ToRGBColor(color.red(), color.green(), color.blue()));
-                    controller_->UpdateLEDs();
-                    return true;
+                    if(apex_mini::hid_codes[i] == hid)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if(!found) return false;
+            }
+            for(const auto hid : hids)
+            {
+                for(std::size_t i = 0; i < apex_mini::key_count; ++i)
+                {
+                    if(apex_mini::hid_codes[i] == hid)
+                    {
+                        controller_->SetColor(static_cast<unsigned int>(i),
+                            ToRGBColor(color.red(), color.green(), color.blue()));
+                        break;
+                    }
                 }
             }
-            return false;
+            controller_->UpdateLEDs();
+            return true;
         });
     }
     return widget_.data();
