@@ -1,9 +1,12 @@
 #pragma once
 
 #include "apex_pro_mini_protocol.h"
+#include <QColor>
 #include <QColorDialog>
+#include <QTimer>
 #include <QFont>
 #include <QHBoxLayout>
+#include <QHash>
 #include <QLabel>
 #include <QMouseEvent>
 #include <QPushButton>
@@ -71,8 +74,9 @@ class KeyboardEditor : public QWidget
 {
 public:
     using ApplyColor = std::function<bool(const std::vector<std::uint8_t>&, const QColor&)>;
-    explicit KeyboardEditor(ApplyColor apply, QWidget* parent = nullptr)
-        : QWidget(parent), apply_(std::move(apply))
+    using ReadColor = std::function<QColor(std::uint8_t)>;
+    explicit KeyboardEditor(ApplyColor apply, ReadColor read, QWidget* parent = nullptr)
+        : QWidget(parent), apply_(std::move(apply)), read_(std::move(read))
     {
         auto* main = new QVBoxLayout(this);
         main->setSpacing(9);
@@ -86,7 +90,7 @@ public:
         auto* note = new QLabel(QStringLiteral(
             "Drag across keycaps to select a rectangle. Click for one key; "
             "Ctrl-click toggles keys, Ctrl-drag adds keys. Choose a color to apply "
-            "to the whole selection in Direct mode."));
+            "to the whole selection in Direct mode. Keycaps preview the current OpenRGB colors."));
         note->setWordWrap(true);
         main->addWidget(note);
 
@@ -201,6 +205,11 @@ public:
         auto* choose = new QPushButton(QStringLiteral("Set selected keys color…"));
         tools->addWidget(choose);
         main->addLayout(tools);
+        auto* preview_note = new QLabel(QStringLiteral(
+            "Live preview: shows OpenRGB's current LED colors, including edits made in Devices. "
+            "Onboard lighting is controlled by the keyboard and cannot be read back."));
+        preview_note->setWordWrap(true);
+        main->addWidget(preview_note);
         auto* footer = new QLabel(QStringLiteral(
             "The seven additional regional/firmware HID addresses remain accessible "
             "through OpenRGB's standard LED list. SteelSeries key HID is provisional."));
@@ -209,34 +218,82 @@ public:
         connect(choose, &QPushButton::clicked, this, [this]()
         {
             if(selected_.isEmpty()) return;
-            const QColor color = QColorDialog::getColor(Qt::blue, this, QStringLiteral("Selected keys color"));
+            QColor initial = Qt::blue;
+            if(read_ && !selected_.isEmpty())
+            {
+                const QColor current = read_(*selected_.constBegin());
+                if(current.isValid()) initial = current;
+            }
+            const QColor color = QColorDialog::getColor(initial, this, QStringLiteral("Selected keys color"));
             if(!color.isValid() || !apply_) return;
             std::vector<std::uint8_t> selected_hids;
             // Use stable visual-order selection so the output is predictable.
             for(const auto& item : buttons_)
                 if(selected_.contains(item.first)) selected_hids.push_back(item.first);
             const bool applied = apply_(selected_hids, color);
+            if(applied) refreshPreview();
             selection_label_->setText(applied
                 ? QStringLiteral("Applied color to %1 keys").arg(selected_hids.size())
                 : QStringLiteral("Cannot apply: select Direct mode and verify device connection"));
         });
-        updateSelection();
+        preview_timer_ = new QTimer(this);
+        preview_timer_->setInterval(150);
+        connect(preview_timer_, &QTimer::timeout, this, [this]()
+        {
+            if(isVisible()) refreshPreview();
+        });
+        preview_timer_->start();
+        refreshPreview();
         setMinimumWidth(820);
     }
 
 private:
-    void updateSelection()
+    void refreshPreview()
     {
         for(const auto& item : buttons_)
         {
-            item.second->setStyleSheet(selected_.contains(item.first)
-                ? QStringLiteral("QPushButton { border: 2px solid #35baff; background-color: #23475d; }")
-                : QString());
+            QColor color = read_ ? read_(item.first) : QColor();
+            if(color.isValid())
+                preview_colors_.insert(item.first, color);
         }
+        updateKeyStyles();
+    }
+
+    void updateKeyStyles()
+    {
+        for(const auto& item : buttons_)
+        {
+            const QColor background = preview_colors_.value(item.first, QColor(34, 39, 48));
+            const bool selected = selected_.contains(item.first);
+            // Render actual RGB fill while selection stays a separate border.
+            const int luminance = (background.red() * 299 + background.green() * 587
+                                   + background.blue() * 114) / 1000;
+            const QString foreground = luminance >= 145 ? QStringLiteral("#111820")
+                                                        : QStringLiteral("#f7faff");
+            const QString border = selected ? QStringLiteral("3px solid #35baff")
+                                            : QStringLiteral("1px solid #697482");
+            const QString style = QStringLiteral(
+                "QPushButton { background-color: %1; color: %2; border: %3; "
+                "border-radius: 5px; font-weight: 600; }")
+                .arg(background.name(QColor::HexRgb), foreground, border);
+            // Avoid triggering a style/polish pass 61 times every timer tick.
+            if(item.second->styleSheet() != style)
+                item.second->setStyleSheet(style);
+            item.second->setToolTip(QStringLiteral("HID %1 • %2")
+                .arg(item.first).arg(background.name(QColor::HexRgb).toUpper()));
+        }
+    }
+
+    void updateSelection()
+    {
+        updateKeyStyles();
         selection_label_->setText(QStringLiteral("Selected: %1 keys").arg(selected_.size()));
     }
 
     ApplyColor apply_;
+    ReadColor read_;
+    QTimer* preview_timer_ = nullptr;
+    QHash<std::uint8_t, QColor> preview_colors_;
     std::vector<std::pair<std::uint8_t, KeyButton*>> buttons_;
     QSet<std::uint8_t> selected_;
     QSet<std::uint8_t> baseline_;
