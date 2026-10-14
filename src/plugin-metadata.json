@@ -1,0 +1,8 @@
+{
+  "OpenRGBPluginAPIVersion": 5,
+  "Id": "org.openrgb.apexpromini",
+  "Name": "Apex Pro Mini",
+  "VersionStr": "0.1.0-dev",
+  "Url": "https://github.com/newnetmp3/OpenRGB-ApexProMini",
+  "Commit": "development"
+}
