@@ -1,6 +1,7 @@
 #pragma once
 #include "apex_pro_mini_effects.h"
 #include "apex_pro_mini_factory.h"
+#include "apex_pro_mini_regions.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -128,17 +129,33 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
                     }
                     else
                     {
-                        const double period = spec->period_ms > 0 ? spec->period_ms/1000.0 : 0;
+                        // The historical Prism catalog includes region-specific
+                        // palette parameters; the physical-to-source grid is
+                        // approximate, not a vendor-accurate compositor.
+                        unsigned int source_row = 2;
+                        for(const auto& p : positions)
+                            if(p.usage == hid) { source_row = p.row; break; }
+                        const auto* region = region_for(spec->id, x, source_row);
+                        const unsigned int period_ms = region ? region->period_ms : spec->period_ms;
+                        const int wavelength_param = region ? region->wavelength : spec->wavelength;
+                        const unsigned int geometry = region ? region->geometry : spec->geometry;
+                        const double period = period_ms > 0 ? period_ms/1000.0 : 0;
                         const double phase = period > 0 ? time/period : 0;
-                        const double geometric = spec->geometry == 3
-                            ? (x+y)*0.5 : spec->geometry == 2 ? y : x;
-                        const double wavelength = std::abs(spec->wavelength)/64.0;
-                        const double direction = spec->wavelength < 0 ? -1.0 : 1.0;
+                        const double geometric = geometry == 3
+                            ? (x+y)*0.5 : geometry == 2 ? y : x;
+                        const double wavelength = std::abs(wavelength_param)/64.0;
+                        const double direction = wavelength_param < 0 ? -1.0 : 1.0;
                         const double value = period > 0
                             ? std::fmod(geometric*wavelength*255.0+
                                 direction*phase*255.0+2048.0*255.0,255.0)
                             : geometric*255.0;
-                        color = palette(*spec, value);
+                        if(region)
+                        {
+                            const FactoryPreset local{spec->id,period_ms,wavelength_param,
+                                geometry,1,region->stops,region->stop_count};
+                            color = palette(local,value);
+                        }
+                        else color = palette(*spec, value);
                         if(effect == factory_effect_base+5 ||
                            effect == factory_effect_base+6 ||
                            effect == factory_effect_base+7 ||
