@@ -18,7 +18,7 @@ OpenRGBPluginInfo ApexProMiniPlugin::GetPluginInfo()
 void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
 {
     api_ = api;
-    if(hid_init() != 0) return;
+    if(hid_init() != 0) return;\n    hid_initialized_ = true;
     // Restrict to the vendor-defined control collection. Do not open the keyboard input endpoint.
     hid_device_info* info = hid_enumerate(apex_mini::vendor_id, apex_mini::product_id);
     for(hid_device_info* it = info; it != nullptr; it = it->next)
@@ -30,7 +30,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
         }
     }
     hid_free_enumeration(info);
-    if(!device_)\n    {\n        hid_exit();\n        return;\n    }
+    if(!device_)\n    {\n        hid_exit();\n        hid_initialized_ = false;\n        return;\n    }
 
     RGBController_Setup setup{};
     setup.name = "SteelSeries Apex Pro Mini (Plugin)";
@@ -73,7 +73,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
         setup.leds.push_back(key);
     }
     controller_ = api_->CreateVirtualRGBController(&setup);
-    if(controller_)\n    {\n        api_->RegisterVirtualRGBController(controller_);\n    }\n    else\n    {\n        hid_close(device_);\n        device_ = nullptr;\n        hid_exit();\n    }
+    if(controller_)\n    {\n        api_->RegisterVirtualRGBController(controller_);\n    }\n    else\n    {\n        hid_close(device_);\n        device_ = nullptr;\n        hid_exit();\n        hid_initialized_ = false;\n    }
 }
 
 void ApexProMiniPlugin::UpdateLEDs(void* context)
