@@ -1,5 +1,6 @@
 #pragma once
 #include <QObject>
+#include <QPointer>
 #include <OpenRGBPluginInterface.h>
 #include <hidapi.h>
 #include <mutex>
@@ -13,7 +14,7 @@ public:
     OpenRGBPluginInfo GetPluginInfo() override;
     unsigned int GetPluginAPIVersion() override { return OPENRGB_PLUGIN_API_VERSION; }
     void Load(OpenRGBPluginAPIInterface* api) override;
-    QWidget* GetWidget() override { return nullptr; }
+    QWidget* GetWidget() override;
     QMenu* GetTrayMenu() override { return nullptr; }
     void Unload() override;
     void OnProfileAboutToLoad() override {}
@@ -33,4 +34,5 @@ private:
     hid_device* device_ = nullptr;
     bool hid_initialized_ = false;
     std::mutex io_mutex_;
+    QPointer<QWidget> widget_;
 };
