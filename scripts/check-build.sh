@@ -15,4 +15,6 @@ if [[ "${1:-}" == "--plugin" ]]; then
         -DOPENRGB_SOURCE_DIR="$OPENRGB_SOURCE_DIR" \
         -DCMAKE_BUILD_TYPE=Debug
     cmake --build build-plugin --parallel
+    ctest --test-dir build-plugin --output-on-failure
+    ./build-plugin/apex_plugin_metadata_check "$(realpath build-plugin/OpenRGB-ApexProMini.so)"
 fi
