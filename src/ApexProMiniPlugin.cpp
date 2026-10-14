@@ -25,8 +25,8 @@ QWidget* ApexProMiniPlugin::GetWidget()
     {
         widget_ = new apex_mini::KeyboardEditor([this](std::uint8_t hid, const QColor& color)
         {
-            if(!controller_ || controller_->GetActiveMode() != 0)
-                return;
+            if(!controller_ || !device_ || controller_->GetActiveMode() != 0)
+                return false;
             for(std::size_t i = 0; i < apex_mini::key_count; ++i)
             {
                 if(apex_mini::hid_codes[i] == hid)
@@ -34,9 +34,10 @@ QWidget* ApexProMiniPlugin::GetWidget()
                     controller_->SetColor(static_cast<unsigned int>(i),
                         ToRGBColor(color.red(), color.green(), color.blue()));
                     controller_->UpdateLEDs();
-                    break;
+                    return true;
                 }
             }
+            return false;
         });
     }
     return widget_.data();
