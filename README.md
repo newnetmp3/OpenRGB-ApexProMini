@@ -62,3 +62,9 @@ sha256sum build-plugin/OpenRGB-ApexProMini.so "$HOME/.config/OpenRGB/plugins/Ope
 ```
 
 Both SHA-256 values must be identical, and both metadata checks must succeed. If either check fails, do not start OpenRGB yet. The two older `0.9_Bookworm` plugins are unrelated and may continue producing their own warnings.
+
+## Qt runtime compatibility
+
+OpenRGB may be compiled with Qt5 or Qt6. The plugin must use the **same Qt major version as the OpenRGB executable**. A Qt6 plugin can pass Qt6's standalone metadata inspector yet be rejected by a Qt5 OpenRGB loader with `does not have a MetaData field`.
+
+Inspect the executable directly: `ldd /absolute/path/to/OpenRGB | grep -E 'libQt[56](Core|Widgets)'`. Build the plugin with `OPENRGB_QT_MAJOR=5` or `OPENRGB_QT_MAJOR=6` according to that output. The plugin build defaults to 5 for locally compiled qmake installations; rebuild from a clean `build-plugin` directory when changing majors. For Arch Linux Qt5 builds, install `qt5-base` if it is missing.
