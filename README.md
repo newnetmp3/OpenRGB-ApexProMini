@@ -35,3 +35,15 @@ bash scripts/check-build.sh
 - A local standalone C++ sanity check confirmed the 68 HID IDs are unique and 68 four-byte entries fit the 513-byte report. This is **not** a full build of the repository or an on-device test.
 - The full Qt6/HIDAPI plugin build has not run successfully yet; development packages are unavailable in the current execution environment.
 - Plugin API 5 is the target. Match the OpenRGB executable and SDK version before installing.
+
+## Local OpenRGB plugin loading
+
+OpenRGB 1.0's PluginManager requires a Qt `MetaData` object containing `OpenRGBPluginAPIVersion` and a unique `Id`. This project embeds `src/plugin-metadata.json` with `Q_PLUGIN_METADATA(FILE ...)`; metadata must be present for the manager to try loading the plugin. An older OpenRGB 0.9 plugin built for a different API may still be skipped independently.
+
+After building the plugin against a compatible local OpenRGB source tree, stop OpenRGB before updating the shared library:
+
+```sh
+install -Dm755 build-plugin/OpenRGB-ApexProMini.so "${XDG_CONFIG_HOME:-$HOME/.config}/OpenRGB/plugins/OpenRGB-ApexProMini.so"
+```
+
+Restart the locally compiled OpenRGB and inspect its plugin log. Successful metadata recognition does **not** prove keyboard detection or lighting writes; check those separately.
