@@ -80,3 +80,7 @@ On Arch Linux with a locally compiled Qt5 OpenRGB, the user confirmed the plugin
 ## Provisional keyboard matrix (2026-10-14)
 
 The device now exposes a 5-row by 32-column OpenRGB matrix with human-readable key names instead of a 68-LED linear zone. The map references the original 68 HID IDs by LED index, and encoding order is unchanged. Placement is an **ANSI-like approximation** with extra positions for firmware and ISO variants, not a validated manufacturer's geometry. Protocol tests verify matrix coverage, bounds, and uniqueness. Visual key placement and all RGB effects remain to be validated on the owner's device.
+
+## Native matrix visual cleanup (2026-10-14)
+
+The first hardware screenshot showed a sparse 5×32 checkerboard of uniformly sized cells. A follow-up change packs the same 68 addressable HID usages into a 5×16 matrix, with a center-positioned Space LED. This is a **visual compactness fix**, not a true keycap-shaped rendering: OpenRGB's native LED grid still draws each key as an equal-sized rectangle, and variant usages are still included. Custom keyboard-shaped Qt graphics are a separate milestone. A real OpenRGB render of the new matrix is pending.
