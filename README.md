@@ -2,7 +2,7 @@
 
 Standalone OpenRGB plugin project for the **wired** SteelSeries Apex Pro Mini (USB VID:PID `1038:161e`). The goal is to avoid modifying OpenRGB's built-in SteelSeries controller.
 
-**Status:** Qt/OpenRGB plugin source and optional Linux module build target implemented, **not yet compiled or runtime-validated**. No release artifact is available.
+**Status:** Built and hardware-tested on Arch Linux using locally compiled Qt5 OpenRGB. The wired keyboard is detected, Direct RGB changes physical lighting, and switching to Onboard restores internal lighting. A packaged release and effects port are not yet complete.
 
 ## Protocol
 
@@ -72,3 +72,7 @@ Inspect the executable directly: `ldd /absolute/path/to/OpenRGB | grep -E 'libQt
 ## Startup crash fixed (2026-10-14)
 
 The native Qt5 OpenRGB runtime crashed in `QWidget::setParent` through `OpenRGBPluginContainer::OpenRGBPluginContainer` because `GetWidget()` returned `nullptr`. OpenRGB unconditionally reparents plugin widgets, including Settings-tab plugins. The implementation now returns a real `QLabel` tracked with `QPointer` to avoid a dangling widget pointer if Qt deletes it. **Requires an on-device runtime retest after rebuilding**; do not treat a successful compile as proof of safe startup.
+
+## Owner hardware verification — 2026-10-14
+
+On Arch Linux with a locally compiled Qt5 OpenRGB, the user confirmed the plugin loads, the Apex Pro Mini appears as an OpenRGB device, Direct mode successfully changes physical keyboard RGB colors, and Onboard restores the internal lighting. This confirms the initial device discovery, virtual-controller registration, RGB HID transport and release workflow on the owner's wired keyboard. This does **not** yet verify per-key visual matrix coordinates, all software effects, multiple attached keyboards, hotplug, or packaging.
