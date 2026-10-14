@@ -1,6 +1,7 @@
 #include "ApexProMiniPlugin.h"
 #include "apex_pro_mini_protocol.h"
 #include <vector>
+#include <string>
 
 OpenRGBPluginInfo ApexProMiniPlugin::GetPluginInfo()
 {
@@ -17,8 +18,13 @@ OpenRGBPluginInfo ApexProMiniPlugin::GetPluginInfo()
 
 void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
 {
+    if(!api || api_ || controller_ || device_) return;
     api_ = api;
-    if(hid_init() != 0) return;
+    if(hid_init() != 0)
+    {
+        api_ = nullptr;
+        return;
+    }
     hid_initialized_ = true;
     // Restrict to the vendor-defined control collection. Do not open the keyboard input endpoint.
     hid_device_info* info = hid_enumerate(apex_mini::vendor_id, apex_mini::product_id);
@@ -35,6 +41,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
     {
         hid_exit();
         hid_initialized_ = false;
+        api_ = nullptr;
         return;
     }
 
@@ -89,6 +96,7 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
         device_ = nullptr;
         hid_exit();
         hid_initialized_ = false;
+        api_ = nullptr;
     }
 }
 
@@ -145,6 +153,10 @@ void ApexProMiniPlugin::Unload()
         if(device_) hid_close(device_);
         device_ = nullptr;
     }
-    hid_exit();
+    if(hid_initialized_)
+    {
+        hid_exit();
+        hid_initialized_ = false;
+    }
     api_ = nullptr;
 }
