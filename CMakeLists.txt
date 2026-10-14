@@ -11,6 +11,13 @@ if(BUILD_OPENRGB_PLUGIN)
     if(NOT DEFINED OPENRGB_SOURCE_DIR)
         message(FATAL_ERROR "Set OPENRGB_SOURCE_DIR to the matching OpenRGB source checkout")
     endif()
+    if(NOT EXISTS "${OPENRGB_SOURCE_DIR}/OpenRGBPluginInterface.h"
+       OR NOT EXISTS "${OPENRGB_SOURCE_DIR}/RGBController/RGBControllerInterface.h")
+        message(FATAL_ERROR
+            "OPENRGB_SOURCE_DIR must point to an OpenRGB source checkout, "
+            "not this plugin repository. Expected OpenRGBPluginInterface.h and "
+            "RGBController/RGBControllerInterface.h in ${OPENRGB_SOURCE_DIR}")
+    endif()
     find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(HIDAPI REQUIRED IMPORTED_TARGET hidapi-hidraw)
