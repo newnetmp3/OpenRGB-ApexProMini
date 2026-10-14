@@ -31,6 +31,7 @@ private:
     void SendRelease();
     OpenRGBPluginAPIInterface* api_ = nullptr;
     RGBControllerInterface* controller_ = nullptr;
-    hid_device* device_ = nullptr;\n    bool hid_initialized_ = false;
+    hid_device* device_ = nullptr;
+    bool hid_initialized_ = false;
     std::mutex io_mutex_;
 };
