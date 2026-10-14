@@ -69,6 +69,24 @@ QWidget* ApexProMiniPlugin::GetWidget()
                 }
             }
             return QColor();
+        }, [this](const std::vector<apex_mini::KeyColor>& frame)
+        {
+            if(!controller_ || !device_ || controller_->GetActiveMode() != 0
+               || frame.size() != apex_mini::key_count)
+                return false;
+            for(std::size_t i = 0; i < apex_mini::key_count; ++i)
+            {
+                const auto& key = frame[i];
+                if(key.hid != apex_mini::hid_codes[i]) return false;
+            }
+            for(std::size_t i = 0; i < apex_mini::key_count; ++i)
+            {
+                const auto& color = frame[i].color;
+                controller_->SetColor(static_cast<unsigned int>(i),
+                    ToRGBColor(color.r, color.g, color.b));
+            }
+            controller_->UpdateLEDs();
+            return true;
         });
     }
     return widget_.data();
