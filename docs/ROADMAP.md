@@ -5,7 +5,8 @@
 - [x] Direct full-color lighting and Onboard restoration (owner verified)
 - [x] Physical-photo-inspired keycap UI, click/multi-select and bulk editing (owner verified for early editor)
 - [x] Live preview implementation, current OpenRGB colors (owner feedback: awesome; no independent detailed runtime logs)
-- [x] Software animation first implementation: rainbow, wave, breathing, frame tests committed (**not yet compiled or hardware-verified**)
+- [x] Initial Rainbow, Wave and Breathing animations (**owner reports working on keyboard**)
+- [x] Gradient, Color Shift, Comet, Sparkle algorithms and UI entries committed (**pending owner build/hardware test**)
 - [ ] Validate effects build/behavior, frame pacing and transition edge cases
 - [ ] Complete remaining software effects, input-reactive effects and region masks
 - [ ] Port Prism-inspired presets with provenance and non-vendor-exact labels
