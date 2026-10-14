@@ -7,7 +7,7 @@
 class ApexProMiniPlugin final : public QObject, public OpenRGBPluginInterface
 {
     Q_OBJECT
-    Q_PLUGIN_METADATA(IID "org.openrgb.OpenRGBPluginInterface")
+    Q_PLUGIN_METADATA(IID "org.openrgb.OpenRGBPluginInterface" FILE "plugin-metadata.json")
     Q_INTERFACES(OpenRGBPluginInterface)
 public:
     OpenRGBPluginInfo GetPluginInfo() override;
