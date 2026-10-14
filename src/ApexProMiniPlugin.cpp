@@ -88,9 +88,9 @@ void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
     zone keyboard{};
     keyboard.name = "Keyboard";
     keyboard.type = ZONE_TYPE_MATRIX;
-    const auto matrix = apex_mini::keyboard_matrix();
+    auto matrix = apex_mini::keyboard_matrix();
     keyboard.matrix_map.Set(apex_mini::layout_rows, apex_mini::layout_columns,
-                            const_cast<unsigned int*>(matrix.data()));
+                            matrix.data());
     keyboard.leds_min = apex_mini::key_count;
     keyboard.leds_max = apex_mini::key_count;
     keyboard.leds_count = apex_mini::key_count;
