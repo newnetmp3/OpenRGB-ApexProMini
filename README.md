@@ -2,7 +2,7 @@
 
 Standalone OpenRGB plugin project for the **wired** SteelSeries Apex Pro Mini (USB VID:PID `1038:161e`). The goal is to avoid modifying OpenRGB's built-in SteelSeries controller.
 
-**Status:** Initial protocol library and development scaffold. This is **not yet a loadable OpenRGB plugin**. The OpenRGB plugin device-registration interface, build integration, and runtime lifecycle still require implementation and testing.
+**Status:** Qt/OpenRGB plugin source and optional Linux module build target implemented, **not yet compiled or runtime-validated**. No release artifact is available.
 
 ## Protocol
 
@@ -24,7 +24,7 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-## Next milestones
+## Experimental plugin build (OpenRGB API v5 / Qt6)\n\nRequires a matching OpenRGB 1.0 source checkout, Qt6 development packages, and hidapi-hidraw. The source is not yet compile-verified.\n\n```sh\ncmake -S . -B build-plugin -DBUILD_OPENRGB_PLUGIN=ON -DOPENRGB_SOURCE_DIR=/path/to/OpenRGB\ncmake --build build-plugin\n```\n\nThe plugin registers a virtual keyboard and writes to the wired Mini's vendor HID control interface. **Do not run the original native-driver fork build at the same time**, or two controllers may target the same hardware.\n\n## Next milestones
 
 1. Confirm the OpenRGB plugin SDK's virtual device registration and shutdown APIs for the target OpenRGB release.
 2. Implement plugin entrypoint, HID discovery and ownership, RGB controller lifecycle and OpenRGB keyboard matrix mapping.
