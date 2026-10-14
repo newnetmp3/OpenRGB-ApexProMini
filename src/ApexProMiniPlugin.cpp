@@ -2,6 +2,7 @@
 #include "apex_pro_mini_protocol.h"
 #include <vector>
 #include <string>
+#include <QLabel>
 
 OpenRGBPluginInfo ApexProMiniPlugin::GetPluginInfo()
 {
@@ -14,6 +15,17 @@ OpenRGBPluginInfo ApexProMiniPlugin::GetPluginInfo()
     info.Label = "Apex Pro Mini";
     info.ProtocolVersion = OPENRGB_PLUGIN_API_VERSION;
     return info;
+}
+
+QWidget* ApexProMiniPlugin::GetWidget()
+{
+    if(!widget_)
+    {
+        auto* label = new QLabel(QStringLiteral("Apex Pro Mini USB RGB controller. Configure lighting in the Devices tab."));
+        label->setWordWrap(true);
+        widget_ = label;
+    }
+    return widget_.data();
 }
 
 void ApexProMiniPlugin::Load(OpenRGBPluginAPIInterface* api)
