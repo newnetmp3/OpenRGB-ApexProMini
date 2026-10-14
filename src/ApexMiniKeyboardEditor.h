@@ -3,12 +3,16 @@
 #include "apex_pro_mini_protocol.h"
 #include "apex_pro_mini_layout.h"
 #include <QColorDialog>
+#include <QFont>
+#include <QSizePolicy>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <functional>
+#include <initializer_list>
+#include <utility>
 
 namespace apex_mini
 {
@@ -19,7 +23,7 @@ struct VisualKey { std::uint8_t hid; const char* label; double units; };
 class KeyboardEditor : public QWidget
 {
 public:
-    using ApplyColor = std::function<void(std::uint8_t, const QColor&)>;
+    using ApplyColor = std::function<bool(std::uint8_t, const QColor&)>;
     explicit KeyboardEditor(ApplyColor apply, QWidget* parent = nullptr)
         : QWidget(parent), apply_(std::move(apply))
     {
@@ -107,7 +111,13 @@ public:
         {
             if(!selected_button_) return;
             const QColor color = QColorDialog::getColor(Qt::blue, this, QStringLiteral("Key color"));
-            if(color.isValid() && apply_) apply_(selected_, color);
+            if(color.isValid() && apply_)
+            {
+                const bool applied = apply_(selected_, color);
+                selection_->setText(applied
+                    ? QStringLiteral("Applied color to HID %1").arg(selected_)
+                    : QStringLiteral("Cannot apply: select Direct mode and verify device connection"));
+            }
         });
         setMinimumWidth(820);
     }
