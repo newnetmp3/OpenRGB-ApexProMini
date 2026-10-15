@@ -17,6 +17,7 @@ struct LightingProfile
     int speed = 100;
     int brightness = 100;
     bool reverse = false;
+    bool custom_palette = false;
     Color base{18,30,65};
     Color accent{0,230,255};
     std::vector<KeyColor> saved_colors;
@@ -51,6 +52,7 @@ inline QJsonObject encode_profile(const LightingProfile& p)
     obj.insert(QStringLiteral("speed"),p.speed);
     obj.insert(QStringLiteral("brightness"),p.brightness);
     obj.insert(QStringLiteral("reverse"),p.reverse);
+    obj.insert(QStringLiteral("custom_palette"),p.custom_palette);
     obj.insert(QStringLiteral("base"),static_cast<int>(p.base.r)*65536+
                                       static_cast<int>(p.base.g)*256+p.base.b);
     obj.insert(QStringLiteral("accent"),static_cast<int>(p.accent.r)*65536+
@@ -76,9 +78,11 @@ inline bool decode_profile(const QJsonObject& obj, LightingProfile& p)
     const auto base=obj.value(QStringLiteral("base"));
     const auto accent=obj.value(QStringLiteral("accent"));
     const auto reverse=obj.value(QStringLiteral("reverse"));
+    const auto custom=obj.value(QStringLiteral("custom_palette"));
     if(!valid_effect(effect) || speed<25 || speed>300 ||
        brightness<0 || brightness>100 ||
-       !base.isDouble() || !accent.isDouble() || !reverse.isBool()) return false;
+       !base.isDouble() || !accent.isDouble() || !reverse.isBool() ||
+       (!custom.isUndefined() && !custom.isBool())) return false;
     const int b=base.toInt(-1), a=accent.toInt(-1);
     if(b<0 || b>0xffffff || a<0 || a>0xffffff) return false;
     LightingProfile candidate;
@@ -86,6 +90,8 @@ inline bool decode_profile(const QJsonObject& obj, LightingProfile& p)
     candidate.speed=speed;
     candidate.brightness=brightness;
     candidate.reverse=reverse.toBool();
+    // Absent in version-1 profiles saved before custom palette support.
+    candidate.custom_palette=custom.toBool(false);
     candidate.base=from_hex(static_cast<std::uint32_t>(b));
     candidate.accent=from_hex(static_cast<std::uint32_t>(a));
     const auto colors=obj.value(QStringLiteral("colors"));
