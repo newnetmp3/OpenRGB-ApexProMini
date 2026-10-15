@@ -130,6 +130,16 @@ inline double hit_intensity(int effect, std::uint8_t hid, double x, double y,
     return std::max(0.0, std::min(1.0, intensity));
 }
 
+// WabashAndLake's compact 2.1-second palette cycle is too busy at the
+// middle of the UI's 0.25x..3.0x slider. Keep its speed conversion local:
+// 1.0x becomes 0.35x actual playback (roughly a 6-second cycle), while
+// the slider retains its normal 0.25x..3x range and other presets are unchanged.
+inline double preset_motion_speed(int effect, double slider_speed)
+{
+    const double bounded = std::max(0.1, std::min(4.0, slider_speed));
+    return effect == factory_effect_base + 10 ? bounded * 0.35 : bounded;
+}
+
 // Effects 8..14 fill out the 14-mode source catalogue (including Solid).
 // Factory 100..130 correspond to independently reconstructed Prism presets.
 // The firmware command stream remains unchanged (all 68 HID usages in order).
@@ -175,7 +185,7 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
     std::vector<KeyColor> frame;
     frame.reserve(key_count);
     const double time = (controls.reverse ? -seconds : seconds)
-                        * std::max(0.1, std::min(4.0, speed));
+                        * preset_motion_speed(effect, speed);
     const bool is_factory = effect >= factory_effect_base &&
                             effect < factory_effect_base + static_cast<int>(factory_presets.size());
     const FactoryPreset* spec = is_factory ? &factory_presets[effect - factory_effect_base] : nullptr;
