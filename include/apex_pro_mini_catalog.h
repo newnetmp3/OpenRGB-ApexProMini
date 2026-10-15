@@ -15,6 +15,17 @@ struct KeyHit { std::uint8_t hid; double when; };
 constexpr int factory_effect_base = 100;
 constexpr int last_basic_effect = 14;
 
+inline int reactive_kind(int effect)
+{
+    if(effect == 8 || effect == 9 || effect == 13 || effect == 14) return effect;
+    if(effect == factory_effect_base + 5) return 14; // reactiveLine
+    if(effect == factory_effect_base + 6) return 8;  // reactiveRipple
+    if(effect == factory_effect_base + 7) return 9;  // reactiveSingleKey
+    if(effect == factory_effect_base + 29) return 13; // heatmap
+    return 0;
+}
+
+
 inline Color from_hex(std::uint32_t rgb)
 {
     return {static_cast<std::uint8_t>((rgb >> 16) & 255),
@@ -60,6 +71,7 @@ inline double hit_intensity(int effect, std::uint8_t hid, double x, double y,
                             const std::vector<KeyHit>& hits)
 {
     double intensity = 0;
+    double accumulated_heat = 0;
     for(const auto& hit : hits)
     {
         const double age = seconds - hit.when;
@@ -75,8 +87,8 @@ inline double hit_intensity(int effect, std::uint8_t hid, double x, double y,
             const double distance = radius - age * 0.6 * speed;
             value = std::exp(-distance*distance/0.008) * (1.0-age/2.5);
         }
-        else if(effect == 13) // heatmap
-            value = std::exp(-radius * 11.0) * (1.0-age/2.5);
+        else if(effect == 13) // accumulating heatmap
+            value = std::exp(-radius * 9.0) * std::exp(-age * 0.60);
         else if(effect == 14) // reactive line
         {
             const double front = std::abs(dx) - age * 0.5 * speed;
@@ -84,7 +96,9 @@ inline double hit_intensity(int effect, std::uint8_t hid, double x, double y,
                     * (1.0-age/2.5);
         }
         intensity = std::max(intensity, value);
+        if(effect == 13) accumulated_heat += value;
     }
+    if(effect == 13) intensity = 1.0 - std::exp(-accumulated_heat * 0.85);
     return std::max(0.0, std::min(1.0, intensity));
 }
 
@@ -112,7 +126,7 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
         {
             case 0: color = {0,0,0}; break;
             case 8: case 9: case 13: case 14:
-                color = lerp({6,12,25}, {0,230,255},
+                color = lerp({6,12,25}, effect == 13 ? Color{255,78,0} : Color{0,230,255},
                     hit_intensity(effect,hid,x,y,seconds,speed,hits));
                 break;
             case 10: color = hsv(std::abs(x-0.5)*2.0 + y*0.12 + time*0.16,1.0,1.0); break;
@@ -127,7 +141,7 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
                         // migration data; use a named fallback, "disabled" is off.
                         if(effect == factory_effect_base)
                             color = {255,95,0};
-                        else if(effect == factory_effect_base+29)
+                        else if(reactive_kind(effect) == 13)
                             color = lerp({6,12,25}, {255,68,0},
                                 hit_intensity(13,hid,x,y,seconds,speed,hits));
                         else color = {0,0,0};
@@ -161,16 +175,12 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
                             color = palette(local,value);
                         }
                         else color = palette(*spec, value);
-                        if(effect == factory_effect_base+5 ||
-                           effect == factory_effect_base+6 ||
-                           effect == factory_effect_base+7 ||
-                           effect == factory_effect_base+29)
+                        if(const int kind = reactive_kind(effect))
                         {
-                            const int kind = effect == factory_effect_base+5 ? 14 :
-                                             effect == factory_effect_base+6 ? 8 :
-                                             effect == factory_effect_base+7 ? 9 : 13;
                             const double intensity = hit_intensity(kind,hid,x,y,seconds,speed,hits);
-                            color = lerp({6,12,25},color,intensity);
+                            // White palette stops are meaningful only as the
+                            // reactive foreground; idle keys remain dark.
+                            color = lerp({6,12,25}, color, intensity);
                         }
                     }
                 }
