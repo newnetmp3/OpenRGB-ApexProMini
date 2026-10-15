@@ -74,3 +74,15 @@ Next: improve diagnostics for input event count and confirm true hardware keypre
 ## Owner hardware verification — 2026-10-14
 
 Following the Prism-reactive regression fix (unified reactive dispatch and cumulative Heatmap), the owner reports: **"they work"**. This confirms the previously failing Prism-style keystroke-reactive presets now operate on the wired keyboard under their configured Arch Linux/OpenRGB setup, including the preset family discussed (Heatmap, Reactive Line, Reactive Ripple, Single Key). Keep the evdev opt-in behavior, validated Direct/Onboard handling, live preview and existing 68-HID transport stable. No additional runtime metrics or per-preset screenshots were provided; do not claim exact vendor parity. Next development priorities: profile save/load, optional reconnection/status UI, and improved controls without regressing physical typing reactions.
+
+## Milestone: named presets and per-effect controls — 2026-10-14
+
+User explicitly prioritized “Add preset saving/loading and per-effect controls” over hotplug/reconnection. Implemented:
+- `src/ApexMiniProfiles.h`: QtCore-only versioned JSON profile format, atomic `QSaveFile` writes, strict names and 68-HID RGB snapshot validation. Files stored in `QStandardPaths::AppConfigLocation/apex-pro-mini/profiles` (typically `~/.config/<OpenRGB app name>/apex-pro-mini/profiles`); no keys or keypress history stored.
+- `src/ApexMiniKeyboardEditor.h`: named profile chooser plus Save as and Load buttons. Captures chosen effect, speed slider, brightness slider, reverse motion, base/accent colors and all 68 current OpenRGB LED colors (requires Direct mode). Loading validates first and restores 68-key snapshot; selecting the saved effect resumes its animation if one is selected. Onboard mode declines load without changing UI state.
+- `include/apex_pro_mini_catalog.h`: `EffectControls` adds global software brightness, reverse-time motion, Solid base color, editable palettes for Breathing/Gradient/Color Shift, configurable reactive base/accent. Prism-style palettes retain their historical source colors. This preserves keyboard HID/evdev logic.
+- `tests/profiles_test.cpp` and extended catalog tests for JSON roundtrip, name/version/HID restrictions, atomic disk write, brightness blackout and edited colors; Qt profile test added to CMake when building the plugin.
+- Existing physical-keypress enable switch is NOT persisted or auto-enabled by profiles for privacy.
+- **Pending:** compile Qt5 locally, test saves/loads for core/Prism/keypress-reactive and static per-key colors, and verify new controls in owner’s OpenRGB GUI. No CI success confirmed in this session.
+
+Profiles are a local software format; they do not save or read SteelSeries onboard lighting presets.
