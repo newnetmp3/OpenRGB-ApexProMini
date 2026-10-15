@@ -10,6 +10,7 @@
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QSlider>
+#include <QSignalBlocker>
 #include <QTimer>
 #include <QFont>
 #include <QHBoxLayout>
@@ -354,7 +355,10 @@ public:
             });
             physical_status_->setText(status);
             if(!physical_input_->active())
+            {
+                const QSignalBlocker block(physical_toggle);
                 physical_toggle->setChecked(false);
+            }
         });
 #endif
         preview_timer_ = new QTimer(this);
