@@ -26,3 +26,5 @@ Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
 - [x] Address reported Prism-reactive Heatmap regression: unified factory reactive routing, cumulative heat, dedicated frame tests (pending owner Qt5 hardware validation)
 
 - [x] Owner reports Prism-style physical keypress reactive effects now work after Heatmap/dispatch fix (2026-10-14)
+
+- [x] Fix catalog test confusing uniform Color Shift (ID 5) with spatial Gradient (ID 4); pending owner rerun of offline and Qt5 builds
