@@ -90,6 +90,49 @@ int main()
     const auto shift=full_effect_frame(static_cast<int>(Effect::ColorShift),0.0,1.0,{},controls);
     assert(shift[esc].color.r == shift[backspace].color.r);
     assert(shift[esc].color.g == shift[backspace].color.g);
+    // Every non-disabled historical preset must honor a custom palette,
+    // including physical-key reactive variants and regional color masks.
+    EffectControls recolor;
+    recolor.custom_palette=true;
+    recolor.base={20,2,180};
+    recolor.accent={245,100,14};
+    const std::vector<KeyHit> test_hits{{4,0.0},{22,0.15}};
+    for(std::size_t preset=0;preset<factory_presets.size();++preset)
+    {
+        if(preset==25) continue; // disabled intentionally remains dark
+        const int id=factory_effect_base+static_cast<int>(preset);
+        const auto original=full_effect_frame(id,0.3,1.0,test_hits);
+        const auto custom=full_effect_frame(id,0.3,1.0,test_hits,recolor);
+        bool different=false;
+        for(std::size_t i=0;i<key_count;++i)
+        {
+            assert(original[i].hid==custom[i].hid);
+            different |= original[i].color.r!=custom[i].color.r ||
+                         original[i].color.g!=custom[i].color.g ||
+                         original[i].color.b!=custom[i].color.b;
+        }
+        assert(different && "Every non-disabled Prism preset must honor custom colors");
+    }
+    // Mode 0 must remain dark, regardless of palette selection.
+    const auto off=full_effect_frame(0,0.3,1.0,{},recolor);
+    for(const auto& k : off)
+        assert(k.color.r==0 && k.color.g==0 && k.color.b==0);
+    const auto default_rainbow=full_effect_frame(1,0.5,1.0);
+    const auto custom_rainbow=full_effect_frame(1,0.5,1.0,{},recolor);
+    assert(default_rainbow[0].color.r!=custom_rainbow[0].color.r ||
+           default_rainbow[0].color.g!=custom_rainbow[0].color.g ||
+           default_rainbow[0].color.b!=custom_rainbow[0].color.b);
+    const auto untouched=full_effect_frame(factory_effect_base+4,0.6,1.0);
+    EffectControls inactive;
+    inactive.base={200,2,3};
+    inactive.accent={1,220,40};
+    const auto still_original=full_effect_frame(factory_effect_base+4,0.6,1.0,{},inactive);
+    for(std::size_t i=0;i<key_count;++i)
+    {
+        assert(untouched[i].color.r==still_original[i].color.r);
+        assert(untouched[i].color.g==still_original[i].color.g);
+        assert(untouched[i].color.b==still_original[i].color.b);
+    }
     const auto quiet = full_effect_frame(9, 0.05, 1.0);
     const auto pressed = full_effect_frame(9, 0.05, 1.0, {{4,0.0}});
     for(std::size_t i=0;i<key_count;++i)
