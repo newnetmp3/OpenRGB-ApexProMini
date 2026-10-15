@@ -15,6 +15,7 @@
 #include <QTimer>
 #include <QFont>
 #include <QHBoxLayout>
+#include <QGroupBox>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -260,6 +261,67 @@ public:
                 ? QStringLiteral("Applied color to %1 keys").arg(selected_hids.size())
                 : QStringLiteral("Cannot apply: select Direct mode and verify device connection"));
         });
+#ifdef __linux__
+        // Keep this section above the animation selector: reactive presets need
+        // the physical-key stream enabled, whereas other effects do not.
+        auto* reactive_panel = new QGroupBox();
+        reactive_panel->setObjectName(QStringLiteral("ApexReactivePanel"));
+        reactive_panel->setStyleSheet(QStringLiteral(
+            "QGroupBox#ApexReactivePanel { border: 2px solid #b88720;"
+            " border-radius: 7px; background-color: rgba(184,135,32,25);"
+            " margin-top: 0px; padding: 7px; }"));
+        auto* reactive_layout = new QVBoxLayout(reactive_panel);
+        reactive_layout->setSpacing(5);
+        auto* reactive_heading = new QLabel(
+            QStringLiteral("⚠  PHYSICAL KEYPRESS REACTIONS"));
+        QFont reactive_font = reactive_heading->font();
+        reactive_font.setBold(true);
+        reactive_heading->setFont(reactive_font);
+        reactive_layout->addWidget(reactive_heading);
+        auto* reactive_help = new QLabel(QStringLiteral(
+            "Required for Ripple, Reactive, Heatmap and key-triggered Prism effects "
+            "to respond to actual typing. Other animations work without it."));
+        reactive_help->setWordWrap(true);
+        reactive_layout->addWidget(reactive_help);
+        auto* physical_controls = new QHBoxLayout();
+        auto* physical_toggle = new QPushButton(QStringLiteral("Enable physical keypress reactions"));
+        physical_toggle->setCheckable(true);
+        physical_toggle->setMinimumHeight(34);
+        physical_toggle->setToolTip(QStringLiteral(
+            "Opt-in read-only monitoring of this Apex Pro Mini's key-down events. "
+            "No key logging, input grabbing or saved keystrokes."));
+        physical_controls->addWidget(physical_toggle);
+        physical_status_ = new QLabel(QStringLiteral("Status: OFF — physical typing will not trigger reactive lighting"));
+        physical_status_->setWordWrap(true);
+        physical_controls->addWidget(physical_status_, 1);
+        reactive_layout->addLayout(physical_controls);
+        main->addWidget(reactive_panel);
+        physical_input_ = new PhysicalKeyInput(this);
+        connect(physical_toggle, &QPushButton::toggled, this,
+                [this, physical_toggle](bool enabled)
+        {
+            if(!enabled)
+            {
+                physical_input_->stop();
+                physical_status_->setText(QStringLiteral(
+                    "Status: OFF — physical typing will not trigger reactive lighting"));
+                return;
+            }
+            const QString status = physical_input_->start([this](std::uint8_t hid)
+            {
+                if(effect_timer_ && effect_timer_->isActive())
+                    hits_.push_back({hid, effect_clock_.elapsed() / 1000.0});
+            });
+            physical_status_->setText(physical_input_->active()
+                ? QStringLiteral("Status: CONNECTED — %1").arg(status)
+                : QStringLiteral("Status: UNAVAILABLE — %1").arg(status));
+            if(!physical_input_->active())
+            {
+                const QSignalBlocker block(physical_toggle);
+                physical_toggle->setChecked(false);
+            }
+        });
+#endif
         auto* fx = new QHBoxLayout();
         fx->addWidget(new QLabel(QStringLiteral("Animation")));
         auto* effect_box = new QComboBox();
@@ -457,38 +519,6 @@ public:
         {
             effect_box->setCurrentIndex(0);
         });
-#ifdef __linux__
-        auto* physical_controls = new QHBoxLayout();
-        auto* physical_toggle = new QPushButton(QStringLiteral("Enable physical keypress reactions"));
-        physical_toggle->setCheckable(true);
-        physical_controls->addWidget(physical_toggle);
-        physical_status_ = new QLabel(QStringLiteral("Physical keypress monitoring: off"));
-        physical_status_->setWordWrap(true);
-        physical_controls->addWidget(physical_status_, 1);
-        main->addLayout(physical_controls);
-        physical_input_ = new PhysicalKeyInput(this);
-        connect(physical_toggle, &QPushButton::toggled, this,
-                [this, physical_toggle](bool enabled)
-        {
-            if(!enabled)
-            {
-                physical_input_->stop();
-                physical_status_->setText(QStringLiteral("Physical keypress monitoring: off"));
-                return;
-            }
-            const QString status = physical_input_->start([this](std::uint8_t hid)
-            {
-                if(effect_timer_ && effect_timer_->isActive())
-                    hits_.push_back({hid, effect_clock_.elapsed() / 1000.0});
-            });
-            physical_status_->setText(status);
-            if(!physical_input_->active())
-            {
-                const QSignalBlocker block(physical_toggle);
-                physical_toggle->setChecked(false);
-            }
-        });
-#endif
         preview_timer_ = new QTimer(this);
         preview_timer_->setInterval(150);
         connect(preview_timer_, &QTimer::timeout, this, [this]()
