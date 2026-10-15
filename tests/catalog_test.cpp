@@ -78,8 +78,18 @@ int main()
     const auto solid=full_effect_frame(12,0.0,1.0,{},controls);
     assert(solid[0].color.r==250 && solid[0].color.g==10);
     controls.accent={10,230,80};
-    const auto grad=full_effect_frame(5,0.0,1.0,{},controls);
-    assert(grad[0].color.r!=grad[10].color.r);
+    // Effect ID 4 is spatial Gradient; ID 5 is whole-board Color Shift.
+    // Compare keys by known HID usage, not by arbitrary transport indices.
+    const auto grad=full_effect_frame(static_cast<int>(Effect::Gradient),0.0,1.0,{},controls);
+    std::size_t esc=0, backspace=0;
+    while(esc<key_count && hid_codes[esc]!=41) ++esc;
+    while(backspace<key_count && hid_codes[backspace]!=42) ++backspace;
+    assert(esc<key_count && backspace<key_count);
+    assert(grad[esc].color.r > grad[backspace].color.r);
+    assert(grad[esc].color.g < grad[backspace].color.g);
+    const auto shift=full_effect_frame(static_cast<int>(Effect::ColorShift),0.0,1.0,{},controls);
+    assert(shift[esc].color.r == shift[backspace].color.r);
+    assert(shift[esc].color.g == shift[backspace].color.g);
     const auto quiet = full_effect_frame(9, 0.05, 1.0);
     const auto pressed = full_effect_frame(9, 0.05, 1.0, {{4,0.0}});
     for(std::size_t i=0;i<key_count;++i)
