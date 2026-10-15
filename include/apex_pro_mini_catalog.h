@@ -14,6 +14,21 @@ namespace apex_mini
 struct KeyHit { std::uint8_t hid; double when; };
 constexpr int factory_effect_base = 100;
 constexpr int last_basic_effect = 14;
+struct EffectControls
+{
+    double brightness = 1.0;
+    bool reverse = false;
+    Color base{18,30,65};
+    Color accent{0,230,255};
+};
+inline Color dim_color(Color c, double brightness)
+{
+    const double factor = std::max(0.0,std::min(1.0,brightness));
+    return {static_cast<std::uint8_t>(std::lround(c.r*factor)),
+            static_cast<std::uint8_t>(std::lround(c.g*factor)),
+            static_cast<std::uint8_t>(std::lround(c.b*factor))};
+}
+
 
 inline int reactive_kind(int effect)
 {
@@ -106,14 +121,21 @@ inline double hit_intensity(int effect, std::uint8_t hid, double x, double y,
 // Factory 100..130 correspond to independently reconstructed Prism presets.
 // The firmware command stream remains unchanged (all 68 HID usages in order).
 inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
-                          double speed, const std::vector<KeyHit>& hits = {})
+                          double speed, const std::vector<KeyHit>& hits = {},
+                          EffectControls controls = {})
 {
     if(effect >= 1 && effect <= 7)
-        return effect_frame(static_cast<Effect>(effect), seconds, speed);
+    {
+        auto frame = effect_frame(static_cast<Effect>(effect),
+                                  controls.reverse ? -seconds : seconds, speed);
+        for(auto& key : frame) key.color = dim_color(key.color,controls.brightness);
+        return frame;
+    }
 
     std::vector<KeyColor> frame;
     frame.reserve(key_count);
-    const double time = seconds * std::max(0.1, std::min(4.0, speed));
+    const double time = (controls.reverse ? -seconds : seconds)
+                        * std::max(0.1, std::min(4.0, speed));
     const bool is_factory = effect >= factory_effect_base &&
                             effect < factory_effect_base + static_cast<int>(factory_presets.size());
     const FactoryPreset* spec = is_factory ? &factory_presets[effect - factory_effect_base] : nullptr;
@@ -126,12 +148,12 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
         {
             case 0: color = {0,0,0}; break;
             case 8: case 9: case 13: case 14:
-                color = lerp({6,12,25}, effect == 13 ? Color{255,78,0} : Color{0,230,255},
+                color = lerp(controls.base, effect == 13 ? Color{255,78,0} : controls.accent,
                     hit_intensity(effect,hid,x,y,seconds,speed,hits));
                 break;
             case 10: color = hsv(std::abs(x-0.5)*2.0 + y*0.12 + time*0.16,1.0,1.0); break;
             case 11: color = hsv(x*1.2+y*0.35+std::sin(time*0.19)*0.4-time*0.07,1.0,1.0); break;
-            case 12: color = {18,30,65}; break; // Solid
+            case 12: color = controls.base; break; // Solid
             default:
                 if(spec)
                 {
@@ -186,7 +208,7 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
                 }
                 break;
         }
-        frame.push_back({hid,color});
+        frame.push_back({hid,dim_color(color,controls.brightness)});
     }
     return frame;
 }
