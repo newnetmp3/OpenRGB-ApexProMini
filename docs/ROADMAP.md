@@ -15,7 +15,8 @@
 - [ ] Add hotplug reconnect and physical-event input status recovery
 - [ ] Validate effects and regional masks against physical layout and owner hardware
 - [x] Label all reconstructed Prism-style presets and preserve provenance; visual parity unverified
-- [ ] Add preset saving/loading and per-effect controls
+- [x] Add named JSON profile saving/loading and effect controls (brightness, reverse, base/accent; pending owner build/UI validation)
+- [ ] Polish effect-specific parameter presentation and save/load integration testing
 - [ ] Improve physical key geometry/regions; verify SteelSeries-key HID mapping
 - [ ] Hotplug/reconnect handling, error reports, collision avoidance and recovery
 - [ ] Native Arch Linux packaging, release CI and installation instructions
