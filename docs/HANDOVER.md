@@ -41,3 +41,19 @@ Source: `newnetmp3/ApexProMini_gg_rgb` (Rust `src/effects.rs`, `src/factory.rs`,
 Latest batch is **NOT COMPILE-VERIFIED**, NOT hardware-verified, and is not a claim of exact vendor GG rendering. Region coordinates are approximate; source migration data summarize parameter palettes/periods but not complete proprietary compositor behavior.
 
 Next: run Qt5 build+CTest and test effects, errors, frame rate, UI selection, Stop, Onboard. Address hardware key event support without grabbing/delaying keyboard input; preferably an optional read-only evdev integration with explicit permissions and user opt-in.
+
+## Optional real-key input integration — 2026-10-14
+
+Owner reports full effect/preset catalog works on the wired keyboard and requests genuine physical keypress reactions.
+
+Implemented Linux-only opt-in read-only evdev support:
+- `src/ApexMiniPhysicalInput.h` enumerates `/sys/class/input/event*`, validates ancestor USB VID 1038 / PID 161e and KEY_A capability, then opens only the matching `/dev/input/eventN` node with `O_RDONLY|O_NONBLOCK|O_CLOEXEC`.
+- `include/apex_pro_mini_evdev_codes.h` maps Linux key codes to valid Apex USB HID IDs.
+- `QSocketNotifier` dispatches only `EV_KEY` with `value==1` to the existing transient `KeyHit` vector. No grabs, keystroke logging, files, remote transmission or background service.
+- Settings editor adds **Enable physical keypress reactions** toggle (off by default), with device/permission status. Turning it off closes the evdev file descriptor.
+- `tests/evdev_codes_test.cpp` plus CTest entry validate normal key translations. Real event node detection and Qt5 runtime tests still need owner verification.
+- Optional read permission may be needed via desktop seat ACL/udev policy. Avoid chmod 666, indiscriminate input group elevation or running OpenRGB as root.
+- **Caveat:** real typing is not an independent global system keyboard hook. It is limited to a matching wired keyboard event node, which is intentional. Keycaps clicked within editor remain a functional trigger.
+- **Caveat:** hot unplug currently shuts down the notifier, but its UI status may not update until re-enabled; reconnect requires toggling monitoring again. Future improvement: hotplug detection and reporter status.
+
+Build using same standard Qt5 plugin command; no extra third-party libevdev dependency required (Linux input UAPI and Qt Core).
