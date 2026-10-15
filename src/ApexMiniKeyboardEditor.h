@@ -500,6 +500,21 @@ public:
         setMinimumWidth(820);
     }
 
+    // Called before the OpenRGB virtual controller is unregistered.
+    // The editor may be owned by the host; avoid deleting Qt widgets here.
+    void StopActivity()
+    {
+        if(effect_timer_) effect_timer_->stop();
+        if(preview_timer_) preview_timer_->stop();
+#ifdef __linux__
+        if(physical_input_) physical_input_->stop();
+#endif
+        hits_.clear();
+        frame_ = {};
+        apply_ = {};
+        read_ = {};
+    }
+
 private:
     void reloadProfiles(const QString& preferred=QString())
     {
