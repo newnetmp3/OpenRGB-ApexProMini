@@ -267,12 +267,12 @@ public:
         effect_box->addItem(QStringLiteral("Comet"), static_cast<int>(Effect::Comet));
         effect_box->addItem(QStringLiteral("Sparkle"), static_cast<int>(Effect::Sparkle));
         effect_box->addItem(QStringLiteral("Solid"), 12);
-        effect_box->addItem(QStringLiteral("Ripple (click-reactive)"), 8);
-        effect_box->addItem(QStringLiteral("Reactive (click-reactive)"), 9);
+        effect_box->addItem(QStringLiteral("Ripple (keypress-reactive)"), 8);
+        effect_box->addItem(QStringLiteral("Reactive (keypress-reactive)"), 9);
         effect_box->addItem(QStringLiteral("Rainbow Split"), 10);
         effect_box->addItem(QStringLiteral("Prismatic Sweep"), 11);
-        effect_box->addItem(QStringLiteral("Heatmap (click-reactive)"), 13);
-        effect_box->addItem(QStringLiteral("Reactive Line (click-reactive)"), 14);
+        effect_box->addItem(QStringLiteral("Heatmap (keypress-reactive)"), 13);
+        effect_box->addItem(QStringLiteral("Reactive Line (keypress-reactive)"), 14);
         effect_box->insertSeparator(effect_box->count());
         for(std::size_t i=0; i<factory_presets.size(); ++i)
         {
