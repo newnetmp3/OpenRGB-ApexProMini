@@ -21,3 +21,5 @@
 - [ ] Native Arch Linux packaging, release CI and installation instructions
 
 Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
+
+- [x] Address reported Prism-reactive Heatmap regression: unified factory reactive routing, cumulative heat, dedicated frame tests (pending owner Qt5 hardware validation)
