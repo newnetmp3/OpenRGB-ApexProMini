@@ -2,6 +2,7 @@
 
 #include "apex_pro_mini_protocol.h"
 #include "apex_pro_mini_catalog.h"
+#include "ApexMiniProfiles.h"
 #ifdef __linux__
 #include "ApexMiniPhysicalInput.h"
 #endif
@@ -14,6 +15,9 @@
 #include <QTimer>
 #include <QFont>
 #include <QHBoxLayout>
+#include <QInputDialog>
+#include <QMessageBox>
+#include <QCheckBox>
 #include <QHash>
 #include <QLabel>
 #include <QMouseEvent>
@@ -293,6 +297,114 @@ public:
         fx->addWidget(stop);
         main->addLayout(fx);
 
+        auto* controls_row = new QHBoxLayout();
+        controls_row->addWidget(new QLabel(QStringLiteral("Brightness")));
+        brightness_slider_ = new QSlider(Qt::Horizontal);
+        brightness_slider_->setRange(0,100);
+        brightness_slider_->setValue(100);
+        controls_row->addWidget(brightness_slider_,1);
+        reverse_ = new QCheckBox(QStringLiteral("Reverse motion"));
+        controls_row->addWidget(reverse_);
+        base_button_ = new QPushButton(QStringLiteral("Base color"));
+        accent_button_ = new QPushButton(QStringLiteral("Accent color"));
+        controls_row->addWidget(base_button_);
+        controls_row->addWidget(accent_button_);
+        main->addLayout(controls_row);
+        connect(base_button_, &QPushButton::clicked, this, [this]()
+        {
+            const QColor picked=QColorDialog::getColor(QColor(controls_.base.r,controls_.base.g,controls_.base.b),
+                                             this,QStringLiteral("Base color"));
+            if(picked.isValid())
+                controls_.base={static_cast<std::uint8_t>(picked.red()),
+                                static_cast<std::uint8_t>(picked.green()),
+                                static_cast<std::uint8_t>(picked.blue())};
+            refreshControlButtons();
+        });
+        connect(accent_button_, &QPushButton::clicked, this, [this]()
+        {
+            const QColor picked=QColorDialog::getColor(QColor(controls_.accent.r,controls_.accent.g,controls_.accent.b),
+                                             this,QStringLiteral("Accent color"));
+            if(picked.isValid())
+                controls_.accent={static_cast<std::uint8_t>(picked.red()),
+                                  static_cast<std::uint8_t>(picked.green()),
+                                  static_cast<std::uint8_t>(picked.blue())};
+            refreshControlButtons();
+        });
+        refreshControlButtons();
+
+        auto* profiles_row=new QHBoxLayout();
+        profiles_row->addWidget(new QLabel(QStringLiteral("Profiles")));
+        profile_box_=new QComboBox();
+        profiles_row->addWidget(profile_box_,1);
+        auto* save_button=new QPushButton(QStringLiteral("Save as…"));
+        auto* load_button=new QPushButton(QStringLiteral("Load"));
+        profiles_row->addWidget(save_button);
+        profiles_row->addWidget(load_button);
+        main->addLayout(profiles_row);
+        profile_status_=new QLabel(QStringLiteral("Profiles are stored locally; keypress history is not saved."));
+        main->addWidget(profile_status_);
+        connect(save_button,&QPushButton::clicked,this,[this,effect_box,speed_slider]()
+        {
+            bool ok=false;
+            const QString name=QInputDialog::getText(this,QStringLiteral("Save lighting profile"),
+                QStringLiteral("Profile name"),QLineEdit::Normal,profile_box_->currentText(),&ok).trimmed();
+            if(!ok) return;
+            LightingProfile p;
+            p.effect=effect_box->currentData().toInt();
+            p.speed=speed_slider->value();
+            p.brightness=brightness_slider_->value();
+            p.reverse=reverse_->isChecked();
+            p.base=controls_.base;
+            p.accent=controls_.accent;
+            // Preserve controller order, not the 61-key visual layout.
+            for(const auto hid : hid_codes)
+            {
+                const QColor rgb=read_ ? read_(hid) : QColor();
+                if(!rgb.isValid())
+                {
+                    profile_status_->setText(QStringLiteral("Switch to Direct mode before saving a profile."));
+                    return;
+                }
+                p.saved_colors.push_back({hid,{static_cast<std::uint8_t>(rgb.red()),
+                                               static_cast<std::uint8_t>(rgb.green()),
+                                               static_cast<std::uint8_t>(rgb.blue())}});
+            }
+            QString error;
+            if(!save_profile(name,p,error))
+            {
+                profile_status_->setText(error);
+                return;
+            }
+            reloadProfiles(name);
+            profile_status_->setText(QStringLiteral("Saved profile: %1").arg(name));
+        });
+        connect(load_button,&QPushButton::clicked,this,[this,effect_box,speed_slider]()
+        {
+            const QString name=profile_box_->currentText();
+            LightingProfile p;
+            QString error;
+            if(!load_profile(name,p,error)) { profile_status_->setText(error); return; }
+            // Apply snapshot FIRST. If Onboard is active, leave both UI and
+            // controller unchanged instead of misreporting a successful load.
+            if(!frame_ || !frame_(p.saved_colors))
+            {
+                profile_status_->setText(QStringLiteral("Switch to Direct mode before loading a profile."));
+                return;
+            }
+            effect_box->setCurrentIndex(0); // stop any running old effect
+            controls_.base=p.base;
+            controls_.accent=p.accent;
+            refreshControlButtons();
+            speed_slider->setValue(p.speed);
+            brightness_slider_->setValue(p.brightness);
+            reverse_->setChecked(p.reverse);
+            const int index=effect_box->findData(p.effect);
+            if(index>=0) effect_box->setCurrentIndex(index);
+            refreshPreview();
+            profile_status_->setText(QStringLiteral("Loaded profile: %1").arg(name));
+        });
+        reloadProfiles();
+
         effect_timer_ = new QTimer(this);
         effect_timer_->setInterval(50); // 20 frames/s, avoiding excess HID traffic
         connect(effect_timer_, &QTimer::timeout, this, [this, effect_box, speed_slider]()
@@ -303,8 +415,11 @@ public:
             const double seconds = effect_clock_.elapsed() / 1000.0;
             hits_.erase(std::remove_if(hits_.begin(), hits_.end(),
                 [seconds](const KeyHit& hit) { return seconds - hit.when > 2.5; }), hits_.end());
+            EffectControls current=controls_;
+            current.brightness=brightness_slider_->value()/100.0;
+            current.reverse=reverse_->isChecked();
             if(!frame_(full_effect_frame(static_cast<int>(effect), seconds,
-                     speed_slider->value() / 100.0, hits_)))
+                     speed_slider->value() / 100.0, hits_, current)))
             {
                 effect_timer_->stop();
                 effect_box->setCurrentIndex(0);
@@ -373,6 +488,35 @@ public:
     }
 
 private:
+    void reloadProfiles(const QString& preferred=QString())
+    {
+        const QString current=preferred.isEmpty() ? profile_box_->currentText() : preferred;
+        const QSignalBlocker blocker(profile_box_);
+        profile_box_->clear();
+        const auto names=QDir(profile_directory()).entryList(
+            QStringList() << QStringLiteral("*.json"),QDir::Files,QDir::Name);
+        for(const auto& file : names)
+        {
+            const QString name=file.left(file.size()-5);
+            if(valid_profile_name(name)) profile_box_->addItem(name);
+        }
+        const int index=profile_box_->findText(current);
+        if(index>=0) profile_box_->setCurrentIndex(index);
+    }
+
+    void refreshControlButtons()
+    {
+        const auto style=[](Color color)
+        {
+            return QStringLiteral("QPushButton { background-color: rgb(%1,%2,%3); color: %4; }")
+                .arg(color.r).arg(color.g).arg(color.b)
+                .arg(color.r*299+color.g*587+color.b*114>=145000
+                    ? QStringLiteral("#111820") : QStringLiteral("#f7faff"));
+        };
+        base_button_->setStyleSheet(style(controls_.base));
+        accent_button_->setStyleSheet(style(controls_.accent));
+    }
+
     void refreshPreview()
     {
         for(const auto& item : buttons_)
@@ -418,6 +562,13 @@ private:
     ApplyColor apply_;
     ReadColor read_;
     ApplyFrame frame_;
+    EffectControls controls_;
+    QSlider* brightness_slider_ = nullptr;
+    QCheckBox* reverse_ = nullptr;
+    QPushButton* base_button_ = nullptr;
+    QPushButton* accent_button_ = nullptr;
+    QComboBox* profile_box_ = nullptr;
+    QLabel* profile_status_ = nullptr;
     QComboBox* effect_combo_ = nullptr;
     QTimer* effect_timer_ = nullptr;
     QElapsedTimer effect_clock_;
