@@ -109,3 +109,28 @@ Owner reports every OpenRGB exit logs `[RGBController] SteelSeries Apex Pro Mini
 Fix: `KeyboardEditor::StopActivity()` stops the animation and live preview Qt timers, closes optional evdev reader and clears callback closures; `ApexProMiniPlugin::Unload()` calls StopActivity, unregisters the virtual controller, invokes `static_cast<RGBController*>(controller_)->Shutdown()`, then deletes controller, sends onboard release, closes HID handle, exits hidapi. `RGBController.h` is provided by the existing OpenRGB source tree include path. No effect, profile, transport or input mapping behavior changed.
 
 **UNVERIFIED:** must compile with owner's matching OpenRGB Qt5 checkout; test repeated exit with animation running, physical reactive input on, input off and Onboard mode; inspect `coredumpctl list` for absence of new crashes. Preserve last working plugin backup. Avoid calling Shutdown more than once; current Unload nulls controller and is idempotent on repeated calls.
+
+## Loader symbol regression and host fix — 2026-10-14
+
+Owner confirmed previous exit segfault no longer reproduced in the immediate test, but launch/exit now aborts with:
+`OpenRGB-ApexProMini.so: undefined symbol: _ZN13RGBController8ShutdownEv`
+
+Root cause: plugin linked against OpenRGB's non-exported `RGBController::Shutdown()` (previous patch), so the runtime loader fails to resolve it. Upstream source inspection `CalcProgrammer1/OpenRGB`, `RGBController/RGBController_Virtual.cpp`, confirms `RGBController_Virtual::~RGBController_Virtual()` is empty. `OpenRGBPluginAPI::DeleteVirtualRGBController()` deletes the controller without Shutdown. OpenRGB base class destructor warns when thread is running; host can race plugin callbacks.
+
+Fix in this repo:
+1. Remove all direct Shutdown references and `#include <RGBController.h>` from plugin source (no loader lookup).
+2. Add `scripts/patch-openrgb-virtual-shutdown.py`, an idempotent guarded patch of the user's **OpenRGB host source**, inserting `Shutdown();` inside `RGBController_Virtual::~RGBController_Virtual()` (where the host binary can link it). Creates a one-time backup; refuses unknown source versions.
+3. Keep `KeyboardEditor::StopActivity()` and normal plugin unregister/delete/firmware release/HID close.
+
+**Requires user to rebuild BOTH host and plugin**:
+```bash
+cd ~/local-git/OpenRGB-ApexProMini
+git pull --ff-only
+python3 scripts/patch-openrgb-virtual-shutdown.py ~/local-git/OpenRGB
+cmake --build ~/local-git/OpenRGB/build --parallel
+OPENRGB_QT_MAJOR=5 OPENRGB_SOURCE_DIR="$HOME/local-git/OpenRGB" bash scripts/check-build.sh --plugin
+# Quit OpenRGB before copying .so
+install -Dm755 build-plugin/OpenRGB-ApexProMini.so ~/.config/OpenRGB/plugins/OpenRGB-ApexProMini.so
+../OpenRGB/build/openrgb
+```
+Test close/restart with animations and physical key input enabled. No verified owner runtime yet. Upstream host fix is a local source modification, and may need reapplying after updating OpenRGB.
