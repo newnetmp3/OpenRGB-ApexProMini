@@ -154,3 +154,7 @@ New tests validate profile JSON roundtrip and integrity, atomic on-disk storage,
 ## Exit coredump fix (2026-10-14)
 
 The virtual OpenRGB controller owns its own device worker. On shutdown the plugin must call `RGBController::Shutdown()` **before** `DeleteVirtualRGBController`, otherwise upstream reports a still-running device thread and may crash during teardown. The plugin now stops animation/preview timers and the opt-in evdev input first, unregisters the controller, explicitly stops/joins its worker, deletes the controller, restores firmware-managed lighting and closes the HID device. **This still requires the owner's Qt5 rebuild and repeated close/restart verification.** No RGB payload or reactive effect changes were introduced.
+
+## Important OpenRGB host-side shutdown fix
+
+The base `RGBController::Shutdown()` symbol is **not exported to plugins** by the owner's OpenRGB executable. The plugin no longer invokes it, fixing the `undefined symbol: _ZN13RGBController8ShutdownEv` loader error. The actual worker shutdown must happen in the owning OpenRGB binary. The guarded script `scripts/patch-openrgb-virtual-shutdown.py` adds `Shutdown()` inside OpenRGB's own `RGBController_Virtual` destructor and creates a source backup. Run it on your cloned OpenRGB checkout and **rebuild OpenRGB and the plugin** (see handover). This is an OpenRGB upstream lifecycle gap, not an Apex Mini HID issue. Avoid compiling or statically linking copies of OpenRGB's internal RGBController classes inside the plugin.
