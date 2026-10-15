@@ -39,6 +39,32 @@ int main()
         assert(a[i].color.g == b[i].color.g);
         assert(a[i].color.b == b[i].color.b);
     }
+    assert(reactive_kind(factory_effect_base+5) == 14);
+    assert(reactive_kind(factory_effect_base+6) == 8);
+    assert(reactive_kind(factory_effect_base+7) == 9);
+    assert(reactive_kind(factory_effect_base+29) == 13);
+    for(const int id : {factory_effect_base+5, factory_effect_base+6,
+                        factory_effect_base+7, factory_effect_base+29})
+    {
+        const auto idle = full_effect_frame(id, 0.10, 1.0);
+        const auto hit = full_effect_frame(id, 0.10, 1.0, {{4,0.0}});
+        bool changed = false;
+        for(std::size_t i=0; i<key_count; ++i)
+        {
+            if(idle[i].color.r != hit[i].color.r ||
+               idle[i].color.g != hit[i].color.g ||
+               idle[i].color.b != hit[i].color.b)
+                changed = true;
+        }
+        assert(changed && "Every Prism reactive preset must respond to key presses");
+    }
+    const auto heat_single = full_effect_frame(factory_effect_base+29,0.12,1.0,{{4,0.0}});
+    const auto heat_double = full_effect_frame(factory_effect_base+29,0.12,1.0,
+                                              {{4,0.0},{4,0.05}});
+    std::size_t a_index = 0;
+    while(a_index < key_count && hid_codes[a_index] != 4) ++a_index;
+    assert(a_index < key_count);
+    assert(heat_double[a_index].color.r > heat_single[a_index].color.r);
     const auto quiet = full_effect_frame(9, 0.05, 1.0);
     const auto pressed = full_effect_frame(9, 0.05, 1.0, {{4,0.0}});
     for(std::size_t i=0;i<key_count;++i)
