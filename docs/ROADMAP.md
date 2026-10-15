@@ -32,3 +32,5 @@ Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
 - [x] Implement full-catalog optional Base/Accent recoloring and profile persistence after owner reported many presets ignore pickers (pending owner build/hardware QA)
 
 - [x] Patch OpenRGB exit crash: stop editor activity, explicitly `RGBController::Shutdown()` before controller delete/HID close (pending owner rebuild and exit verification)
+
+- [x] Resolve non-exported RGBController::Shutdown plugin loader symbol: move shutdown into guarded OpenRGB host-source destructor patch (requires local OpenRGB rebuild and owner validation)
