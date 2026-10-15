@@ -134,3 +134,7 @@ install -Dm755 build-plugin/OpenRGB-ApexProMini.so ~/.config/OpenRGB/plugins/Ope
 ../OpenRGB/build/openrgb
 ```
 Test close/restart with animations and physical key input enabled. No verified owner runtime yet. Upstream host fix is a local source modification, and may need reapplying after updating OpenRGB.
+
+## UI emphasis for physical keypress toggle — 2026-10-14
+
+User requests that **Enable physical keypress reactions** stand out and appear above Animation selector. Moved existing Linux-only opt-in evdev controls into an amber-outline **⚠ PHYSICAL KEYPRESS REACTIONS** QGroupBox immediately before the animation selector, with concise instruction: required for real typing responses in Ripple, Reactive, Heatmap and applicable Prism-style effects; not required for standard animations. Increased toggle height and added clear OFF / CONNECTED / UNAVAILABLE state message, retaining device-specific status/error details. No change to evdev capture, opt-in default, effect rendering, saved profiles or host thread cleanup. Build and on-device visual QA pending.
