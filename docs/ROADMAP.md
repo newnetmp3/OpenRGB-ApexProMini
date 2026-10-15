@@ -40,3 +40,5 @@ Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
 - [x] Correct overlapping warning panel text/button seen in owner's Settings screenshot by changing to QFrame with spacing and minimum height (pending owner visual validation)
 
 - [x] Make Apex plugin Settings responsive: independently scrollable keyboard, vertically scrollable page, stacked narrow-width tool rows; add offscreen layout test (pending owner Qt5/visual validation)
+
+- [x] Eliminate virtual keyboard horizontal overexpansion on wide Settings windows with fixed-width keycap layout; add resizing regression assertions (owner visual QA pending)
