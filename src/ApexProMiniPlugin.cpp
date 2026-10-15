@@ -1,5 +1,4 @@
 #include "ApexProMiniPlugin.h"
-#include <RGBController.h>
 #include "apex_pro_mini_protocol.h"
 #include "apex_pro_mini_layout.h"
 #include <vector>
@@ -232,12 +231,12 @@ void ApexProMiniPlugin::Unload()
 
     if(controller_)
     {
-        // OpenRGB's virtual controller is an RGBController implementation.
-        // Shutdown joins its device call thread and drains update callbacks;
-        // deleting without it races our HID device and segfaults at exit.
-        // First unregister to prevent new host dispatches.
+        // OpenRGB owns the virtual controller's device thread. The host's
+        // RGBController_Virtual destructor must call Shutdown() before its
+        // base class destructor (see scripts/patch-openrgb-virtual-shutdown.py).
+        // Do not call the non-exported RGBController::Shutdown symbol here:
+        // doing so prevents the plugin from loading with a symbol lookup error.
         if(api_) api_->UnregisterVirtualRGBController(controller_);
-        static_cast<RGBController*>(controller_)->Shutdown();
         if(api_) api_->DeleteVirtualRGBController(controller_);
         controller_ = nullptr;
     }
