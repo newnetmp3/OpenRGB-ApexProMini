@@ -86,3 +86,7 @@ User explicitly prioritized “Add preset saving/loading and per-effect controls
 - **Pending:** compile Qt5 locally, test saves/loads for core/Prism/keypress-reactive and static per-key colors, and verify new controls in owner’s OpenRGB GUI. No CI success confirmed in this session.
 
 Profiles are a local software format; they do not save or read SteelSeries onboard lighting presets.
+
+## CTest catalog test fix — 2026-10-14
+
+Owner's `bash scripts/check-build.sh --plugin` stopped at the first offline CTest stage: `apex_pro_mini_catalog_test` line 82 asserted `grad[0].color.r != grad[10].color.r`. The test inadvertently invoked effect ID 5, **Color Shift**, which correctly produces uniform spatial color, instead of effect ID 4, **Gradient**. Fixed regression test to explicitly refer to `Effect::Gradient`, compare known Esc/Backspace HIDs for a spatial red/green gradient, and separately assert `Effect::ColorShift` yields equal key colors. No renderer, evdev, plugin transport or UI changes. Owner must re-run build; the script's `set -e` prevents the Qt plugin build from starting until offline CTest passes. The updated test is committed but not yet rerun on the owner's system.
