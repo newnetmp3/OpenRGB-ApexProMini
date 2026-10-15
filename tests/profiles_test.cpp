@@ -18,6 +18,7 @@ int main(int argc,char** argv)
     p.speed=175;
     p.brightness=67;
     p.reverse=true;
+    p.custom_palette=true;
     p.base={2,40,95};
     p.accent={250,9,17};
     for(const auto hid : hid_codes) p.saved_colors.push_back({hid,{hid,2,3}});
@@ -26,9 +27,15 @@ int main(int argc,char** argv)
     assert(decode_profile(raw,restored));
     assert(restored.effect==p.effect && restored.speed==175);
     assert(restored.brightness==67 && restored.reverse);
+    assert(restored.custom_palette);
     assert(restored.base.g==40 && restored.accent.r==250);
     assert(restored.saved_colors.size()==key_count);
     assert(restored.saved_colors[20].hid==hid_codes[20]);
+    auto legacy=raw;
+    legacy.remove(QStringLiteral("custom_palette"));
+    LightingProfile decoded_legacy;
+    assert(decode_profile(legacy,decoded_legacy));
+    assert(!decoded_legacy.custom_palette);
     auto damaged=raw;
     damaged.insert(QStringLiteral("version"),3);
     assert(!decode_profile(damaged,restored));
@@ -49,4 +56,5 @@ int main(int argc,char** argv)
     assert(load_profile(QStringLiteral("QA profile"),from_disk,error));
     assert(from_disk.saved_colors.size()==key_count);
     assert(from_disk.effect==p.effect && from_disk.base.b==95);
+    assert(from_disk.custom_palette);
 }
