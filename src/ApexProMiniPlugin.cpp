@@ -1,4 +1,5 @@
 #include "ApexProMiniPlugin.h"
+#include <RGBController.h>
 #include "apex_pro_mini_protocol.h"
 #include "apex_pro_mini_layout.h"
 #include <vector>
@@ -221,12 +222,26 @@ void ApexProMiniPlugin::SendRelease()
 
 void ApexProMiniPlugin::Unload()
 {
-    if(api_ && controller_)
+    // The GUI's Qt timers and evdev notifier must not access an RGBController
+    // while it is being destroyed. The widget belongs to the Qt host layout:
+    // stop activity, but do not delete it from beneath the host.
+    if(widget_)
     {
-        api_->UnregisterVirtualRGBController(controller_);
-        api_->DeleteVirtualRGBController(controller_);
+        static_cast<apex_mini::KeyboardEditor*>(widget_.data())->StopActivity();
+    }
+
+    if(controller_)
+    {
+        // OpenRGB's virtual controller is an RGBController implementation.
+        // Shutdown joins its device call thread and drains update callbacks;
+        // deleting without it races our HID device and segfaults at exit.
+        // First unregister to prevent new host dispatches.
+        if(api_) api_->UnregisterVirtualRGBController(controller_);
+        static_cast<RGBController*>(controller_)->Shutdown();
+        if(api_) api_->DeleteVirtualRGBController(controller_);
         controller_ = nullptr;
     }
+    // Restore firmware control only after the worker has stopped.
     SendRelease();
     {
         std::lock_guard<std::mutex> lock(io_mutex_);
