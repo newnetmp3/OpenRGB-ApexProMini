@@ -38,3 +38,5 @@ Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
 - [x] Promote opt-in physical-keypress toggle to highlighted warning-triangle panel above effect selector, with clear state and prerequisite explanation (pending Qt5 UI validation)
 
 - [x] Correct overlapping warning panel text/button seen in owner's Settings screenshot by changing to QFrame with spacing and minimum height (pending owner visual validation)
+
+- [x] Make Apex plugin Settings responsive: independently scrollable keyboard, vertically scrollable page, stacked narrow-width tool rows; add offscreen layout test (pending owner Qt5/visual validation)
