@@ -1,164 +1,160 @@
-# OpenRGB Apex Pro Mini Plugin
+# OpenRGB Apex Pro Mini
 
-Standalone OpenRGB plugin project for the **wired** SteelSeries Apex Pro Mini (USB VID:PID `1038:161e`). The goal is to avoid modifying OpenRGB's built-in SteelSeries controller.
+An independent [OpenRGB](https://openrgb.org/) plugin for controlling per-key RGB lighting on the **wired SteelSeries Apex Pro Mini** under Linux.
 
-**Status:** Built and hardware-tested on Arch Linux using locally compiled Qt5 OpenRGB. The wired keyboard is detected, Direct RGB changes physical lighting, and switching to Onboard restores internal lighting. A packaged release and effects port are not yet complete.
+The plugin exposes the keyboard as a virtual OpenRGB device and provides a keyboard-shaped editor, software lighting effects, reactive keypress effects, and locally saved lighting profiles.
 
-## Protocol
+> **Compatibility:** This project currently targets the wired device with USB vendor/product ID **`1038:161e`** and **OpenRGB Plugin API v5**. Development and on-device testing have primarily used **Arch Linux with a locally built Qt 5 OpenRGB**. Other keyboard revisions, wireless models, OpenRGB binaries, and Linux distributions have not been established as compatible.
 
-- HID interface 1, usage page `0xFFC0`, usage 1, report ID 0.
-- Direct lighting: 513-byte **feature** report: `00 40 NN` followed by up to 68 entries of `[HID usage, R, G, B]`, zero-padded.
-- Release direct lighting: 65-byte **output** report beginning `00 41`.
-- The firmware's 70 indexed slots are **not** interchangeable with the 68 supported HID usage codes.
-- No onboard profile or actuation writes are needed.
+This is a community project. It is **not affiliated with, endorsed by, or an official implementation from SteelSeries or OpenRGB**.
 
-Protocol research: [ApexProMini_gg_rgb](https://github.com/newnetmp3/ApexProMini_gg_rgb). The earlier native OpenRGB prototype is preserved in [draft PR #1](https://github.com/newnetmp3/OpenRGB/pull/1).
+## Features
 
-## Development
+- **Direct and Onboard modes.** Direct mode sends per-key RGB updates; Onboard releases software control back to the keyboard's firmware.
+- **Visual key editor.** A 61-key ANSI-style layout supports individual clicks, rectangle selection, Ctrl-click/Ctrl-drag multi-selection, and applying colors to selected keys. It previews colors currently held by OpenRGB.
+- **Software effects.** Rainbow, Color Wave, Breathing, Gradient, Color Shift, Comet, Sparkle, Solid, Ripple, Reactive, Rainbow Split, Prismatic Sweep, Heatmap, and Reactive Line, plus Off.
+- **Prism-style presets.** 31 historical preset entries and 36 regional palette records reconstructed from independently researched parameters. They are **not exact reproductions of SteelSeries GG effects**.
+- **Effect controls.** Speed, brightness, reverse motion where applicable, Base and Accent colors, and an optional custom-color override for preset palettes.
+- **Local profiles.** Save and load named profiles containing the selected effect, controls, and a snapshot of all 68 addressable RGB values.
+- **Physical-keypress reactions (Linux).** Optional, off-by-default reading of this keyboard's Linux evdev key-down events for reactive effects. Normal typing is not intercepted or blocked.
+- **Resizable settings interface.** Vertical scrolling for settings and horizontal scrolling for the keyboard when space is limited.
 
-The `include/apex_pro_mini_protocol.h` header provides dependency-free packet serialization. It performs no HID I/O and does not claim to be a plugin entrypoint. This keeps transport encoding testable independently of OpenRGB and the keyboard.
+Software animation frames run on a roughly **20 Hz** update timer. The plugin does not configure actuation points or other keyboard firmware settings.
 
-```sh
-bash scripts/check-build.sh
+## Compatibility and requirements
+
+| Component | Requirement |
+| --- | --- |
+| Keyboard | Wired SteelSeries Apex Pro Mini, USB ID `1038:161e` |
+| Operating system | Linux; tested primarily on Arch Linux x86_64 |
+| OpenRGB | An OpenRGB build supporting **Plugin API v5** and virtual RGB controllers |
+| Qt | The plugin and the running OpenRGB executable must use the **same Qt major version** (Qt 5 or Qt 6) |
+| Build dependencies | C++17 compiler, CMake 3.16+, Qt Core/Widgets development files, pkg-config, `hidapi-hidraw` development files |
+| USB permissions | The current user needs access to the keyboard's vendor-defined HID interface |
+| Reactive effects | Optional read access to the matching `/dev/input/eventN` node |
+
+A plugin compiled against one OpenRGB checkout should **not** be assumed binary-compatible with another version or differently configured build. In particular, an Arch x86_64 build is not a universal Linux binary.
+
+Do not run this plugin alongside another controller that is simultaneously writing lighting commands to the same keyboard.
+
+## Installation
+
+### Prebuilt Linux plugin
+
+If a compatible binary is available on the [Releases page](https://github.com/newnetmp3/OpenRGB-ApexProMini/releases), download the `OpenRGB-ApexProMini.so` asset for your platform and OpenRGB/Qt build.
+
+1. **Exit OpenRGB completely.**
+2. Install the plugin in your user plugin directory:
+
+   ```bash
+   install -Dm755 OpenRGB-ApexProMini.so \
+     "${XDG_CONFIG_HOME:-$HOME/.config}/OpenRGB/plugins/OpenRGB-ApexProMini.so"
+   ```
+
+3. Restart OpenRGB. The plugin's **Apex Pro Mini** page should appear under **Settings**, and the keyboard should appear in **Devices** when detected.
+
+If OpenRGB fails to load the plugin, verify its Plugin API, Qt version, and shared-library dependencies before assuming a hardware problem.
+
+### Build from source
+
+Clone this repository and use a matching local checkout of the OpenRGB source tree. Example for **Qt 5**:
+
+```bash
+git clone https://github.com/newnetmp3/OpenRGB-ApexProMini.git
+cd OpenRGB-ApexProMini
+
+OPENRGB_QT_MAJOR=5 \
+OPENRGB_SOURCE_DIR="$HOME/local-git/OpenRGB" \
+  bash scripts/check-build.sh --plugin
 ```
 
-## Experimental plugin build (OpenRGB API v5 / Qt6)\n\nRequires a matching OpenRGB 1.0 source checkout, Qt6 development packages, and hidapi-hidraw. The source is not yet compile-verified.\n\n```sh\ncmake -S . -B build-plugin -DBUILD_OPENRGB_PLUGIN=ON -DOPENRGB_SOURCE_DIR=/path/to/OpenRGB\ncmake --build build-plugin\n```\n\nThe plugin registers a virtual keyboard and writes to the wired Mini's vendor HID control interface. **Do not run the original native-driver fork build at the same time**, or two controllers may target the same hardware.\n\n## Next milestones
+The script runs the standalone protocol/effects tests, builds the plugin against `OPENRGB_SOURCE_DIR`, runs the plugin-related tests, and checks the compiled Qt plugin metadata. Use `OPENRGB_QT_MAJOR=6` only if the OpenRGB executable you intend to run uses Qt 6.
 
-1. Confirm the OpenRGB plugin SDK's virtual device registration and shutdown APIs for the target OpenRGB release.
-2. Implement plugin entrypoint, HID discovery and ownership, RGB controller lifecycle and OpenRGB keyboard matrix mapping.
-3. Add a packaged Linux `.so` and installation instructions.
-4. Test against OpenRGB on Arch Linux, including collision avoidance with any native device detector.
-5. Port GG-inspired software effects separately; do not describe offline reconstructions as vendor-exact.
+After a successful build, exit OpenRGB and install the output:
 
-## Verification notes
-
-- A local standalone C++ sanity check confirmed the 68 HID IDs are unique and 68 four-byte entries fit the 513-byte report. This is **not** a full build of the repository or an on-device test.
-- The full Qt6/HIDAPI plugin build has not run successfully yet; development packages are unavailable in the current execution environment.
-- Plugin API 5 is the target. Match the OpenRGB executable and SDK version before installing.
-
-## Local OpenRGB plugin loading
-
-OpenRGB 1.0's PluginManager requires a Qt `MetaData` object containing `OpenRGBPluginAPIVersion` and a unique `Id`. This project embeds `src/plugin-metadata.json` with `Q_PLUGIN_METADATA(FILE ...)`; metadata must be present for the manager to try loading the plugin. An older OpenRGB 0.9 plugin built for a different API may still be skipped independently.
-
-After building the plugin against a compatible local OpenRGB source tree, stop OpenRGB before updating the shared library:
-
-```sh
-install -Dm755 build-plugin/OpenRGB-ApexProMini.so "${XDG_CONFIG_HOME:-$HOME/.config}/OpenRGB/plugins/OpenRGB-ApexProMini.so"
+```bash
+install -Dm755 build-plugin/OpenRGB-ApexProMini.so \
+  "${XDG_CONFIG_HOME:-$HOME/.config}/OpenRGB/plugins/OpenRGB-ApexProMini.so"
 ```
 
-Restart the locally compiled OpenRGB and inspect its plugin log. Successful metadata recognition does **not** prove keyboard detection or lighting writes; check those separately.
+The target OpenRGB checkout must provide `OpenRGBPluginInterface.h` and the RGB controller headers used by its Plugin API. Merely compiling successfully does not guarantee compatibility with a particular OpenRGB executable.
 
-### Diagnosing “does not have a MetaData field”
+## Using the plugin
 
-The plugin build now creates `build-plugin/apex_plugin_metadata_check` and runs it against the compiled `.so`. It uses Qt's `QPluginLoader::metaData()` and checks the same required fields as OpenRGB's PluginManager. A successful C++ compilation alone is not enough.
+Open **Settings → Apex Pro Mini** for the visual lighting editor.
 
-When updating the installed plugin, first **close OpenRGB completely** and verify the module you installed is byte-for-byte the freshly built file:
+**Direct mode:** Choose **Direct** for software effects or editing individual key colors. Select a keycap with a click, drag across multiple keycaps for rectangular selection, or use Ctrl-click/Ctrl-drag to modify a selection. Choose **Set selected keys color…** to apply a static color.
 
-```sh
-OPENRGB_SOURCE_DIR="$HOME/local-git/OpenRGB" bash scripts/check-build.sh --plugin
-install -Dm755 build-plugin/OpenRGB-ApexProMini.so "$HOME/.config/OpenRGB/plugins/OpenRGB-ApexProMini.so"
-sha256sum build-plugin/OpenRGB-ApexProMini.so "$HOME/.config/OpenRGB/plugins/OpenRGB-ApexProMini.so"
-./build-plugin/apex_plugin_metadata_check "$HOME/.config/OpenRGB/plugins/OpenRGB-ApexProMini.so"
+**Animations:** Select an effect from **Animation**. Adjust speed and brightness, reverse moving effects where meaningful, and use **Stop effect** to stop the animation. Use **Base color**, **Accent color**, and **Use custom colors** to recolor supported animations and presets. Turning off custom colors returns reconstructed presets to their built-in palettes.
+
+**Physical keypress effects:** The highlighted **Enable physical keypress reactions** control appears above the Animation selector. Turn it on to react to actual key presses on the wired keyboard. The status shows whether the matching Linux input event device was opened successfully. When disabled, clicking keys inside the editor can still demonstrate reactive behavior. This setting is intentionally **not enabled automatically by loading a profile**.
+
+**Profiles:** Use **Save as…** and **Load** to manage locally stored lighting profiles. Saving and loading require Direct mode. Profiles include per-key RGB values and software settings; they do **not** write SteelSeries onboard profiles or store your typing history.
+
+**Onboard mode:** Select **Onboard** in OpenRGB's device controls to release software RGB control to the keyboard. OpenRGB cannot read back the firmware's current onboard lighting pattern, so the editor is not a live display of onboard effects.
+
+## Linux input permissions
+
+The physical-keypress feature reads only the evdev interface associated with the matching wired USB keyboard. It processes key-down events in memory to drive animation; it does **not** grab the input device, record typed text, save keystroke history, or transmit keystrokes.
+
+If the editor reports a permission error, use the **exact event-device path shown in the status**:
+
+```bash
+ls -l /dev/input/eventN
+getfacl /dev/input/eventN
 ```
 
-Both SHA-256 values must be identical, and both metadata checks must succeed. If either check fails, do not start OpenRGB yet. The two older `0.9_Bookworm` plugins are unrelated and may continue producing their own warnings.
+Replace `eventN` with the actual event number. Your desktop session's seat/udev permissions must grant read access. Avoid running OpenRGB as root or making input event nodes world-readable.
 
-## Qt runtime compatibility
+Unplugging the keyboard may require disabling and re-enabling physical-keypress monitoring after reconnecting; automatic input-device reconnection is not yet implemented.
 
-OpenRGB may be compiled with Qt5 or Qt6. The plugin must use the **same Qt major version as the OpenRGB executable**. A Qt6 plugin can pass Qt6's standalone metadata inspector yet be rejected by a Qt5 OpenRGB loader with `does not have a MetaData field`.
+## OpenRGB virtual-controller shutdown compatibility
 
-Inspect the executable directly: `ldd /absolute/path/to/OpenRGB | grep -E 'libQt[56](Core|Widgets)'`. Build the plugin with `OPENRGB_QT_MAJOR=5` or `OPENRGB_QT_MAJOR=6` according to that output. The plugin build defaults to 5 for locally compiled qmake installations; rebuild from a clean `build-plugin` directory when changing majors. For Arch Linux Qt5 builds, install `qt5-base` if it is missing.
+Some OpenRGB source revisions create virtual RGB controllers without explicitly stopping their device worker thread before destruction. This can cause a thread-active warning or a shutdown crash.
 
-## Startup crash fixed (2026-10-14)
+This repository includes a **guarded, optional source patch** for affected OpenRGB checkouts:
 
-The native Qt5 OpenRGB runtime crashed in `QWidget::setParent` through `OpenRGBPluginContainer::OpenRGBPluginContainer` because `GetWidget()` returned `nullptr`. OpenRGB unconditionally reparents plugin widgets, including Settings-tab plugins. The implementation now returns a real `QLabel` tracked with `QPointer` to avoid a dangling widget pointer if Qt deletes it. **Requires an on-device runtime retest after rebuilding**; do not treat a successful compile as proof of safe startup.
+```bash
+python3 scripts/patch-openrgb-virtual-shutdown.py /path/to/OpenRGB
+cmake --build /path/to/OpenRGB/build --parallel
+```
 
-## Owner hardware verification — 2026-10-14
+The script changes the **local OpenRGB source tree**, not the plugin, and creates a backup. It refuses to modify a source file that does not match the expected destructor. **Do not apply it blindly to other OpenRGB versions.** Prefer a host build that already fixes the virtual-controller shutdown lifecycle. This plugin deliberately does not call `RGBController::Shutdown()` directly because that symbol may not be exported to plugins.
 
-On Arch Linux with a locally compiled Qt5 OpenRGB, the user confirmed the plugin loads, the Apex Pro Mini appears as an OpenRGB device, Direct mode successfully changes physical keyboard RGB colors, and Onboard restores the internal lighting. This confirms the initial device discovery, virtual-controller registration, RGB HID transport and release workflow on the owner's wired keyboard. This does **not** yet verify per-key visual matrix coordinates, all software effects, multiple attached keyboards, hotplug, or packaging.
+## Troubleshooting
 
-## Provisional keyboard matrix (2026-10-14)
+| Problem | What to check |
+| --- | --- |
+| Plugin does not appear | Verify the `.so` location, matching Qt major version, and Plugin API v5 compatibility. |
+| `does not have a MetaData field` | Often indicates mismatched Qt/plugin loading. Rebuild against the Qt major version used by the running OpenRGB. |
+| Missing symbol or shared library | Check `ldd OpenRGB-ApexProMini.so` and rebuild against your installed OpenRGB source/runtime. |
+| Keyboard not detected | Confirm the **wired** USB ID is `1038:161e` and that the vendor HID interface is accessible. |
+| Effects do not update the keyboard | Select Direct mode; ensure no other RGB controller is writing to the same device. |
+| Physical typing does not trigger reactive effects | Enable physical-keypress reactions; check the displayed connection status and event-node permissions. |
+| Crash or thread warning when closing OpenRGB | See the virtual-controller shutdown compatibility section above. |
 
-The device now exposes a 5-row by 32-column OpenRGB matrix with human-readable key names instead of a 68-LED linear zone. The map references the original 68 HID IDs by LED index, and encoding order is unchanged. Placement is an **ANSI-like approximation** with extra positions for firmware and ISO variants, not a validated manufacturer's geometry. Protocol tests verify matrix coverage, bounds, and uniqueness. Visual key placement and all RGB effects remain to be validated on the owner's device.
+You can inspect Qt plugin metadata after building using:
 
-## Native matrix visual cleanup (2026-10-14)
+```bash
+./build-plugin/apex_plugin_metadata_check build-plugin/OpenRGB-ApexProMini.so
+```
 
-The first hardware screenshot showed a sparse 5×32 checkerboard of uniformly sized cells. A follow-up change packs the same 68 addressable HID usages into a 5×16 matrix, with a center-positioned Space LED. This is a **visual compactness fix**, not a true keycap-shaped rendering: OpenRGB's native LED grid still draws each key as an equal-sized rectangle, and variant usages are still included. Custom keyboard-shaped Qt graphics are a separate milestone. A real OpenRGB render of the new matrix is pending.
+## Scope and limitations
 
-## Photograph-matched physical keycaps (2026-10-14)
+- **Wired Apex Pro Mini only**; wireless models and other SteelSeries keyboards are outside the verified scope.
+- The editor displays **61 physical ANSI-style keycaps**, while the device protocol addresses **68 HID usages**. Seven additional regional/firmware usages are exposed in OpenRGB's LED list, not as extra physical keycaps.
+- Regional keyboard positions and the SteelSeries-logo-key mapping are partly provisional.
+- Prism-style animations are independent, approximate renderings derived from documented parameter records, **not** SteelSeries GG code or guaranteed visual matches.
+- Software profiles do not program the keyboard's onboard firmware.
+- There is no automatic evdev reconnection or comprehensive multi-keyboard/hotplug support at this stage.
+- Owner-reported hardware successes include Direct/Onboard lighting, standard animations, and physical-keypress reactive effects on an Arch/Qt5 setup. This is not a compatibility certification for other host builds.
 
-The owner supplied a clear overhead photo of their wired ANSI Apex Pro Mini. The native OpenRGB visualization has been corrected to include **61 physical keycaps**, in rows of **14 / 14 / 13 / 12 / 8**. The bottom row is Ctrl, Windows, Alt, Space, Alt, Windows, SteelSeries-logo key, Ctrl. The firmware exposes 68 HID addresses; seven extra slots (137, 50, 100, 135, 139, 138, 136) remain controllable through the OpenRGB LED list / transport, but are not displayed as imaginary physical keys. The SteelSeries-logo key uses provisional HID 240 pending owner confirmation. The grid remains square-cell based: exact widths and offsets require the planned custom Qt keyboard widget. **The new grid and individual key mapping are not yet tested on hardware.**
+## Development and acknowledgments
 
-## Interactive keycap editor (development)
+Core protocol serialization, effects, profile encoding, and GUI layout tests are available under `tests/`. Run the offline tests with `bash scripts/check-build.sh`, or the full plugin check with `--plugin` and a matching OpenRGB source tree.
 
-The Settings-tab placeholder widget has been replaced with a standalone Qt5/Qt6-compatible 61-key ANSI-like editor based on the owner's keyboard photograph. Key widths approximate real keycap widths, including Backspace, Tab, Caps, Enter, both Shifts, and Space. Click a key, then **Set selected key color…** to pick a color. This calls the virtual OpenRGB controller's `SetColor` and `UpdateLEDs` only in Direct mode, retaining the hardware-verified HID output/release commands and the standard OpenRGB Devices tab. Onboard mode deliberately refuses software LED writes. The SteelSeries-logo key's HID 240 remains provisional. The editor does not yet provide live color previews, multi-key selection, effects, presets or a complete alternative to OpenRGB's standard UI.
+Implementation notes and known development issues are tracked in [`docs/HANDOVER.md`](docs/HANDOVER.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
-**Not yet compile- or hardware-verified:** build the updated plugin and confirm the Settings-tab editor opens and individual key assignments correspond to the physical keyboard; the previous working plugin binary can be restored if the new build fails. Keep OpenRGB closed when replacing its `.so`.
+Protocol exploration and historical preset parameters: [ApexProMini_gg_rgb](https://github.com/newnetmp3/ApexProMini_gg_rgb). OpenRGB is developed by the [OpenRGB project](https://github.com/CalcProgrammer1/OpenRGB).
 
-## Drag multi-key selection (2026-10-14)
-
-The Settings-tab Qt keycap editor now supports click for one key, **left-button rectangle drag** across multiple keys, Ctrl-click toggle, Ctrl-drag additive selection, Select All and Clear Selection. A semi-transparent Qt rubber-band marks the drag rectangle, and selected keys get a blue outline. Apply-color now sets each selected HID's controller color and calls `UpdateLEDs()` **once** per operation; it refuses writes in Onboard mode. These changes do not alter the hardware-tested HID encoding or 0x41 release behavior.
-
-**Still to validate on the owner's Qt5 desktop:** Compile the new editor and test drag selection between rows, Ctrl-add, and that a bulk color changes precisely the selected physical keys. The callback reports successful scheduling of `UpdateLEDs`, not confirmation that hidapi reported a successful USB transfer.
-
-## Live keycap color preview (2026-10-14)
-
-The 61-key Settings-tab editor now displays OpenRGB's current per-key RGB values as the backgrounds of the corresponding keycaps. The selection is drawn with an independent cyan border so selecting keys does not obscure their colors. Contrasting label colors improve readability on light or dark RGB fills; key tooltips show the HID usage and hex color. A 150 ms Qt GUI timer polls **only while the editor is visible**, reading `RGBControllerInterface::GetColor` without performing new USB writes. Colors selected with the editor are reflected immediately after `UpdateLEDs`, and color changes made in OpenRGB's Devices tab are picked up during the next refresh. The color dialog opens at the first selected key's current value.
-
-The software cannot query the hardware's onboard animated lighting, so Onboard mode retains the last known software preview rather than claiming to show the physical LEDs. HID protocol and device lifecycle are unchanged. **This version still requires local Qt5 compilation and owner visual testing.**
-
-## Software animation foundation (development)
-
-First pass adds three locally generated effects in the Apex Pro Mini Settings editor: **Rainbow**, **Color Wave**, and **Breathing**. The speed slider spans 0.25x–3x; Stop effect returns to static Direct colors. A Qt timer requests an approximately **20 Hz** frame rate (50 ms), using the already-working 68-usage `SetColor`/`UpdateLEDs` path and the live keycap preview; no new device commands are introduced. Switching to Onboard stops effect updates on the next timer tick instead of fighting internal lighting. Manual color edits stop the animation before applying their selection. The extra firmware slots remain addressable as part of all 68-key frames, with fallback geometry for unverified regional usages. Each frame is updated in a single controller call.
-
-CMake now contains `apex_pro_mini_effects_test` for deterministic rainbow/wave/breathing frame generation, timing variation and preserved HID order. **Animation effects, Qt integration, USB frame-rate stability and Onboard transitions still require compilation and owner hardware testing.** These are independent approximations, not vendor-exact GG presets. The remaining effect catalogue and saved presets remain on the roadmap.
-
-## Seven-effect expansion (2026-10-14)
-
-The owner confirmed the initial Rainbow, Color Wave, and Breathing effects run well on the keyboard. Four more independently implemented animations have been committed: **Gradient** (static spatial spectrum), **Color Shift** (global cycling hue), **Comet** (sweeping tail), and **Sparkle** (deterministic, time-quantized key flashes). All effects use the existing 68-HID software frame generator, 20 Hz Qt UI timer, controller/USB transport and live keycap preview. Sparkle noise is deliberately deterministic so generated frames do not depend on repaint rate; no random-device input is required. The offline tests now check generated HID ordering, animation variation, Gradient stability, and repeatability. The four new effects have **not yet been compiled or hardware-tested** on the owner's Arch/Qt5 installation. They are not claims of vendor-exact GG presets.
-
-## Full effects and historical preset catalog (2026-10-14)
-
-This port adds the remaining source-listed core modes for a total of **14** (Solid, Breathing, Rainbow, Wave, Color Shift, Gradient, Sparkle, Ripple, Reactive, Comet, Rainbow Split, Prismatic Sweep, Heatmap, Reactive Line), plus a separate **Off** selector choice. It exposes **31 named historic factory entries** from the research repository, comprising 30 underlying base definitions plus the redPulse/faze rename, and incorporates **36 region-specific palette records**. The Prism-style preset selector is populated from `include/apex_pro_mini_factory.h`; color stops, periods, masks and geometries originate from the independently summarized source parameters in `newnetmp3/ApexProMini_gg_rgb`. The interpolation/motion implementation is independently reconstructed, so it is **not a vendor-exact SteelSeries GG recreation**.
-
-**Reactive limitation:** Ripple, Reactive, Heatmap, Reactive Line and their historic counterparts currently respond to clicking physical keycaps *inside the plugin editor while the effect runs*. The code does not capture actual physical keyboard input, does not use evdev, and does not obtain Hall-effect actuation measurements. This preserves normal typing and avoids global input monitoring until a dedicated opt-in implementation is developed. Region placement for ISO/firmware alternatives also remains approximate.
-
-`apex_pro_mini_catalog_test` checks all 14 modes, 31 factory entries and all 68 HID IDs produce encodable frames and asserts the 36-region catalog and redPulse/faze alias. The **new catalog has not yet been compiled or hardware-tested**. Run `bash scripts/check-build.sh --plugin` with `OPENRGB_SOURCE_DIR` and `OPENRGB_QT_MAJOR=5` before installing; keep the last known-good library available for rollback. All RGB transport commands remain unchanged.
-
-## Reactive effects from real keyboard presses (Linux, 2026-10-14)
-
-Physical keypress input is now implemented as an **optional, off-by-default** Linux evdev reader inside the existing Qt plugin. In **Settings → Apex Pro Mini**, choose a reactive effect (Ripple, Reactive, Heatmap, Reactive Line or a reactive Prism-style preset) and click **Enable physical keypress reactions**. The plugin checks `/sys/class/input/event*` for a device physically descending from USB vendor `1038`, product `161e`, and with a normal letter-key capability. It opens only the matching `/dev/input/eventN` node as read-only, nonblocking and close-on-exec. Key-down events are converted from Linux key codes into USB HID values and held briefly in memory for reactive animation frames; key-up, auto-repeat, unknown keycodes and unrelated keyboards are ignored.
-
-The plugin **does not** use `EVIOCGRAB`, intercept typing, store characters, write keystroke logs, read another keyboard, transmit events or start any system-wide daemon. Toggle off to close the input reader. Click-reactive behavior in the on-screen editor remains supported.
-
-**If the status reports permission denied:** check the node with `ls -l /dev/input/eventN` (using the exact node shown by the plugin) and the desktop session's ACLs with `getfacl /dev/input/eventN`. Your distribution's seat/udev permissions must grant the desktop user read access. Do not run OpenRGB as root, chmod input event nodes world-readable or indiscriminately add the user to the input group.
-
-**Pending verification:** compile against your Qt5 OpenRGB, run CTest and physically type while Ripple/Reactive is selected and the input toggle is enabled. Verify no interference with normal text entry and that disabling or Onboard restores expected behavior. Unplug/replug requires re-enabling monitoring for now.
-
-## Prism-style reactive regression fix (2026-10-14)
-
-After the owner verified physical Ripple 100% functional, Prism-style reactive modes were corrected without modifying evdev or USB access. `reactiveLine`, `reactiveRipple`, `reactiveSingleKey` and `heatmap` now use a shared mapping to the verified key-hit processing path. Heatmap combines recent keypress intensity rather than only retaining the strongest single hit, giving repeated typing a visibly stronger heat response. The mode selector now labels core modes keypress-reactive rather than click-only. Dedicated tests assert that every reconstructed Prism reactive mode produces different colors with actual input hits and that repeated key activity builds heat. **Rebuild and hardware re-test still required.** The full Prism animation remains an approximation, not official GG rendering.
-
-## Named lighting profiles and effect controls (2026-10-14)
-
-The custom Settings editor now offers **Save as… / Load** for named local version-1 JSON software profiles. Each profile stores effect selection (including Prism-style catalogue index), speed, brightness, reverse direction, base/accent colors, and a snapshot of all **68 current OpenRGB RGB values** in HID order. Profiles use atomic Qt writes under the application's configuration directory at `apex-pro-mini/profiles`. Names are limited to 48 letters, digits, spaces, hyphens or underscores. Loading validates the schema and HID ordering first and requires Direct mode; saving also requires Direct mode. Static per-key colors restore immediately; animated profiles restart their saved effect. Profiles do not modify onboard firmware, persist actual keypress data, or silently enable physical-key monitoring.
-
-Per-effect controls add **brightness 0–100%**, **reverse motion** (for moving palettes) and **base/accent color pickers**. The user colors apply to Solid, Breathing, Gradient, Color Shift and core reactive effects; the historic Prism-style presets retain their distinctive original-source palettes. Global brightness affects every software animation. Some effects such as static Gradient or Solid do not have a meaningful motion direction. Earlier manual per-key edit workflow, evdev input, live preview and Onboard release are unchanged.
-
-New tests validate profile JSON roundtrip and integrity, atomic on-disk storage, and brightness/color behavior. **Not yet compiled or owner-tested on Qt5:** run the plugin build and CTest, then try Save as → change settings → Load with both static and animated profiles. Keep a copy of your known-good plugin .so before replacing it.
-
-## Custom Base/Accent across all presets (2026-10-14)
-
-**Use custom colors** in the editor controls toggles custom two-color treatment for *all* animated effects and Prism-style historical presets. Choosing either Base or Accent color turns this toggle on automatically; disabling it restores the source-derived palette for Prism and full-spectrum effects. Custom palettes map each generated pixel's original brightness to a Base→Accent blend, preserving motion, per-key masks, keypress-triggered pulses, and 0/black LED values. This palette recoloring is intentionally a creative override rather than vendor-exact Prism rendering. The existing Solid/Breathing/Gradient/Color Shift/core reactive controls retain their behavior. The toggle is saved/restored in named JSON profiles and defaults off for older profiles lacking the field. No HID/evdev changes. Offline CTest coverage verifies that all active historical presets change appearance with custom colors, that Off remains dark, and that old profiles decode. **Needs owner Qt5 build/hardware validation.**
-
-## Exit coredump fix (2026-10-14)
-
-The virtual OpenRGB controller owns its own device worker. On shutdown the plugin must call `RGBController::Shutdown()` **before** `DeleteVirtualRGBController`, otherwise upstream reports a still-running device thread and may crash during teardown. The plugin now stops animation/preview timers and the opt-in evdev input first, unregisters the controller, explicitly stops/joins its worker, deletes the controller, restores firmware-managed lighting and closes the HID device. **This still requires the owner's Qt5 rebuild and repeated close/restart verification.** No RGB payload or reactive effect changes were introduced.
-
-## Important OpenRGB host-side shutdown fix
-
-The base `RGBController::Shutdown()` symbol is **not exported to plugins** by the owner's OpenRGB executable. The plugin no longer invokes it, fixing the `undefined symbol: _ZN13RGBController8ShutdownEv` loader error. The actual worker shutdown must happen in the owning OpenRGB binary. The guarded script `scripts/patch-openrgb-virtual-shutdown.py` adds `Shutdown()` inside OpenRGB's own `RGBController_Virtual` destructor and creates a source backup. Run it on your cloned OpenRGB checkout and **rebuild OpenRGB and the plugin** (see handover). This is an OpenRGB upstream lifecycle gap, not an Apex Mini HID issue. Avoid compiling or statically linking copies of OpenRGB's internal RGBController classes inside the plugin.
-
-## Content-aware Settings layout (2026-10-14)
-
-The Apex settings tab now supports smaller OpenRGB windows without enforcing an 820-pixel editor width. The entire page is vertically scrollable, and the keyboard preview has its own horizontal scrollbar so real keycap proportions and selection remain readable. The responsive control rows switch from horizontal to vertically stacked below a 900px editor width; this includes the yellow physical-keypress panel, effect selector, brightness/color options and profile actions. Layout regression tests use an offscreen Qt widget at 510, 560, 730 and 1080px widths. The renderer, HID transport, evdev reader and profile format are unchanged. Test with `scripts/check-build.sh --plugin` and resize the Settings tab; initial UI build/resize QA remains owner-pending.
+SteelSeries, Apex Pro Mini, and SteelSeries GG are trademarks of their respective owners.
