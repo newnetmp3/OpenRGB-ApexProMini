@@ -1,6 +1,7 @@
 #include "ApexMiniKeyboardEditor.h"
 #include <QApplication>
 #include <QScrollArea>
+#include <QPushButton>
 #include <QScrollBar>
 #include <cassert>
 #include <vector>
@@ -21,6 +22,12 @@ int main(int argc, char** argv)
     assert(page->horizontalScrollBarPolicy() == Qt::ScrollBarAlwaysOff);
     assert(keyboard->horizontalScrollBarPolicy() == Qt::ScrollBarAsNeeded);
     assert(keyboard->verticalScrollBarPolicy() == Qt::ScrollBarAlwaysOff);
+    const int natural_keyboard_width=keyboard->widget()->width();
+    assert(natural_keyboard_width >= 560 && natural_keyboard_width <= 900);
+    const auto buttons=keyboard->widget()->findChildren<QPushButton*>();
+    assert(buttons.size()==61);
+    for(auto* key : buttons)
+        assert(key->height()==36 && key->width()>=40);
 
     for(const auto& size : {QSize(560,440),QSize(730,540),QSize(1080,760),QSize(510,390)})
     {
@@ -30,8 +37,9 @@ int main(int argc, char** argv)
         assert(editor.width()==size.width());
         assert(page->viewport()->width()>0);
         assert(keyboard->viewport()->width()>0);
-        assert(keyboard->widget()->width()>keyboard->viewport()->width()
-               || size.width()>=1080);
+        assert(keyboard->widget()->width()==natural_keyboard_width);
+        if(keyboard->viewport()->width() < natural_keyboard_width)
+            assert(keyboard->horizontalScrollBar()->maximum()>0);
         assert(page->verticalScrollBar()->maximum()>0 || size.height()>=760);
     }
     editor.StopActivity();
