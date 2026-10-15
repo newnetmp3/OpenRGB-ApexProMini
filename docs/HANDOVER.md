@@ -70,3 +70,7 @@ Owner verifies physical Ripple works 100%, but reports Prism-style key-triggered
 - This fix is committed but not yet independently Qt5-build or hardware verified; owner should build, test all four with input toggle on, and report any failures with exact preset name.
 
 Next: improve diagnostics for input event count and confirm true hardware keypress response, not merely editor-click effects.
+
+## Owner hardware verification — 2026-10-14
+
+Following the Prism-reactive regression fix (unified reactive dispatch and cumulative Heatmap), the owner reports: **"they work"**. This confirms the previously failing Prism-style keystroke-reactive presets now operate on the wired keyboard under their configured Arch Linux/OpenRGB setup, including the preset family discussed (Heatmap, Reactive Line, Reactive Ripple, Single Key). Keep the evdev opt-in behavior, validated Direct/Onboard handling, live preview and existing 68-HID transport stable. No additional runtime metrics or per-preset screenshots were provided; do not claim exact vendor parity. Next development priorities: profile save/load, optional reconnection/status UI, and improved controls without regressing physical typing reactions.
