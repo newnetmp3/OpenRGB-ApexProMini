@@ -101,3 +101,11 @@ Owner reports Base and Accent pickers have no visible effect on many/all histori
 - Existing JSON version-1 profiles gain optional `custom_palette` bool, with absence read as false for backward compatibility. Saved custom selection is restored by Load.
 - Added tests over all non-disabled historical presets with recent synthetic physical KeyHits, restoring original colors when toggle is false, plus profile roundtrip and old-format decode.
 - Status: commits pushed, **not yet owner hardware or Qt5 build verified**. No HID or evdev changes; preserve prior working physical reactive effects. Owner should test e.g. Prism, Pride, Heatmap, reactiveRipple and switching custom colors off.
+
+## Exit segfault / virtual RGBController shutdown — 2026-10-14
+
+Owner reports every OpenRGB exit logs `[RGBController] SteelSeries Apex Pro Mini (Plugin): Device thread still active in base class destructor, ensure Shutdown() was called from inherited destructor` then segfaults. Source inspection of upstream `CalcProgrammer1/OpenRGB` shows `RGBController::Shutdown()` stops/joins the device call thread and drains outstanding update callbacks. Previously `ApexProMiniPlugin::Unload()` directly unregistered and deleted the virtual controller before restoring onboard LEDs and closing hidapi. This was a use-after-free/racy teardown.
+
+Fix: `KeyboardEditor::StopActivity()` stops the animation and live preview Qt timers, closes optional evdev reader and clears callback closures; `ApexProMiniPlugin::Unload()` calls StopActivity, unregisters the virtual controller, invokes `static_cast<RGBController*>(controller_)->Shutdown()`, then deletes controller, sends onboard release, closes HID handle, exits hidapi. `RGBController.h` is provided by the existing OpenRGB source tree include path. No effect, profile, transport or input mapping behavior changed.
+
+**UNVERIFIED:** must compile with owner's matching OpenRGB Qt5 checkout; test repeated exit with animation running, physical reactive input on, input off and Onboard mode; inspect `coredumpctl list` for absence of new crashes. Preserve last working plugin backup. Avoid calling Shutdown more than once; current Unload nulls controller and is idempotent on repeated calls.
