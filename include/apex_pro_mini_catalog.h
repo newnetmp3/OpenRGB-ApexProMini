@@ -18,6 +18,7 @@ struct EffectControls
 {
     double brightness = 1.0;
     bool reverse = false;
+    bool custom_palette = false;
     Color base{18,30,65};
     Color accent{0,230,255};
 };
@@ -54,6 +55,18 @@ inline Color lerp(Color a, Color b, double weight)
             static_cast<std::uint8_t>(std::lround(a.g * (1.0 - weight) + b.g * weight)),
             static_cast<std::uint8_t>(std::lround(a.b * (1.0 - weight) + b.b * weight))};
 }
+// Recolor a rendered pixel without changing its animation timing, spatial
+// mask, or brightness envelope. Black remains black, white uses the accent,
+// and other intensities blend base/accent.
+inline Color recolor_pixel(Color source, Color base, Color accent)
+{
+    const double intensity = std::max({source.r, source.g, source.b}) / 255.0;
+    if(intensity <= 0.0) return {0,0,0};
+    const double mix = std::max(0.0, std::min(1.0,
+        (source.r * 0.2126 + source.g * 0.7152 + source.b * 0.0722) / 255.0));
+    return dim_color(lerp(base, accent, mix), intensity);
+}
+
 inline Color palette(const FactoryPreset& preset, double offset)
 {
     if(!preset.stop_count) return {0,0,0};
@@ -149,6 +162,11 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
                 }
                 key.color=lerp(controls.base,controls.accent,mix);
             }
+            // Keep established custom core palettes unchanged; other modes
+            // opt into luminance-preserving recoloring of source animations.
+            if(controls.custom_palette && effect != 3 && effect != 4 &&
+               effect != 5)
+                key.color=recolor_pixel(key.color,controls.base,controls.accent);
             key.color=dim_color(key.color,controls.brightness);
         }
         return frame;
@@ -230,6 +248,10 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
                 }
                 break;
         }
+        if(controls.custom_palette && effect != 0 &&
+           effect != 8 && effect != 9 && effect != 12 &&
+           effect != 13 && effect != 14)
+            color=recolor_pixel(color,controls.base,controls.accent);
         frame.push_back({hid,dim_color(color,controls.brightness)});
     }
     return frame;
