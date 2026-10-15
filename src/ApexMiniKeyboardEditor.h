@@ -16,6 +16,7 @@
 #include <QFont>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QCheckBox>
 #include <QHash>
@@ -347,7 +348,7 @@ public:
         {
             bool ok=false;
             const QString name=QInputDialog::getText(this,QStringLiteral("Save lighting profile"),
-                QStringLiteral("Profile name"),QLineEdit::Normal,profile_box_->currentText(),&ok).trimmed();
+                QStringLiteral("Profile name"),QLineEdit::Normal,profile_box_->currentText(),&ok);
             if(!ok) return;
             LightingProfile p;
             p.effect=effect_box->currentData().toInt();
