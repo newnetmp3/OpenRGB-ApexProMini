@@ -42,3 +42,5 @@ Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
 - [x] Make Apex plugin Settings responsive: independently scrollable keyboard, vertically scrollable page, stacked narrow-width tool rows; add offscreen layout test (pending owner Qt5/visual validation)
 
 - [x] Eliminate virtual keyboard horizontal overexpansion on wide Settings windows with fixed-width keycap layout; add resizing regression assertions (owner visual QA pending)
+
+- [x] Compensate overfast Prism-style WabashAndLake speed slider with 0.35x preset-specific motion scaling and unit assertions (pending owner hardware verification)
