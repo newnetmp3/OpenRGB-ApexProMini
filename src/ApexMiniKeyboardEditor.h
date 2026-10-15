@@ -306,6 +306,9 @@ public:
         controls_row->addWidget(brightness_slider_,1);
         reverse_ = new QCheckBox(QStringLiteral("Reverse motion"));
         controls_row->addWidget(reverse_);
+        custom_palette_ = new QCheckBox(QStringLiteral("Use custom colors"));
+        custom_palette_->setToolTip(QStringLiteral("Recolor all animations and Prism-style presets using Base and Accent; uncheck to restore their original palettes."));
+        controls_row->addWidget(custom_palette_);
         base_button_ = new QPushButton(QStringLiteral("Base color"));
         accent_button_ = new QPushButton(QStringLiteral("Accent color"));
         controls_row->addWidget(base_button_);
@@ -316,9 +319,12 @@ public:
             const QColor picked=QColorDialog::getColor(QColor(controls_.base.r,controls_.base.g,controls_.base.b),
                                              this,QStringLiteral("Base color"));
             if(picked.isValid())
+            {
                 controls_.base={static_cast<std::uint8_t>(picked.red()),
                                 static_cast<std::uint8_t>(picked.green()),
                                 static_cast<std::uint8_t>(picked.blue())};
+                custom_palette_->setChecked(true);
+            }
             refreshControlButtons();
         });
         connect(accent_button_, &QPushButton::clicked, this, [this]()
@@ -326,9 +332,12 @@ public:
             const QColor picked=QColorDialog::getColor(QColor(controls_.accent.r,controls_.accent.g,controls_.accent.b),
                                              this,QStringLiteral("Accent color"));
             if(picked.isValid())
+            {
                 controls_.accent={static_cast<std::uint8_t>(picked.red()),
                                   static_cast<std::uint8_t>(picked.green()),
                                   static_cast<std::uint8_t>(picked.blue())};
+                custom_palette_->setChecked(true);
+            }
             refreshControlButtons();
         });
         refreshControlButtons();
@@ -355,6 +364,7 @@ public:
             p.speed=speed_slider->value();
             p.brightness=brightness_slider_->value();
             p.reverse=reverse_->isChecked();
+            p.custom_palette=custom_palette_->isChecked();
             p.base=controls_.base;
             p.accent=controls_.accent;
             // Preserve controller order, not the 61-key visual layout.
@@ -399,6 +409,7 @@ public:
             speed_slider->setValue(p.speed);
             brightness_slider_->setValue(p.brightness);
             reverse_->setChecked(p.reverse);
+            custom_palette_->setChecked(p.custom_palette);
             const int index=effect_box->findData(p.effect);
             if(index>=0) effect_box->setCurrentIndex(index);
             refreshPreview();
@@ -419,6 +430,7 @@ public:
             EffectControls current=controls_;
             current.brightness=brightness_slider_->value()/100.0;
             current.reverse=reverse_->isChecked();
+            current.custom_palette=custom_palette_->isChecked();
             if(!frame_(full_effect_frame(static_cast<int>(effect), seconds,
                      speed_slider->value() / 100.0, hits_, current)))
             {
@@ -566,6 +578,7 @@ private:
     EffectControls controls_;
     QSlider* brightness_slider_ = nullptr;
     QCheckBox* reverse_ = nullptr;
+    QCheckBox* custom_palette_ = nullptr;
     QPushButton* base_button_ = nullptr;
     QPushButton* accent_button_ = nullptr;
     QComboBox* profile_box_ = nullptr;
