@@ -34,3 +34,5 @@ Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
 - [x] Patch OpenRGB exit crash: stop editor activity, explicitly `RGBController::Shutdown()` before controller delete/HID close (pending owner rebuild and exit verification)
 
 - [x] Resolve non-exported RGBController::Shutdown plugin loader symbol: move shutdown into guarded OpenRGB host-source destructor patch (requires local OpenRGB rebuild and owner validation)
+
+- [x] Promote opt-in physical-keypress toggle to highlighted warning-triangle panel above effect selector, with clear state and prerequisite explanation (pending Qt5 UI validation)
