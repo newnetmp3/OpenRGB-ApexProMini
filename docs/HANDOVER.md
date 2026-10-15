@@ -57,3 +57,16 @@ Implemented Linux-only opt-in read-only evdev support:
 - **Caveat:** hot unplug currently shuts down the notifier, but its UI status may not update until re-enabled; reconnect requires toggling monitoring again. Future improvement: hotplug detection and reporter status.
 
 Build using same standard Qt5 plugin command; no extra third-party libevdev dependency required (Linux input UAPI and Qt Core).
+
+## Prism-reactive regression fix — 2026-10-14
+
+Owner verifies physical Ripple works 100%, but reports Prism-style key-triggered effects such as Heatmap do not operate properly. Thus evdev detection and Linux key mapping are functional; target the Prism renderer rather than reopening input permissions.
+
+- Added explicit `reactive_kind(effect)` routing for factory `reactiveLine` (+5), `reactiveRipple` (+6), `reactiveSingleKey` (+7), and `heatmap` (+29).
+- Both core and factory heatmap use cumulative recent-key intensity with exponential falloff, instead of a max-only value.
+- Factory presets retain their white palette accents and dark idle background; no HIDs, USB transport or callback behavior changed.
+- Added CTest regressions asserting all four factory reactive modes visually change when supplied a real `KeyHit`, plus repeated hits heat up the same key more than one hit.
+- Corrected GUI labels to indicate keypress-reactive (physical with opt-in evdev, editor-click fallback).
+- This fix is committed but not yet independently Qt5-build or hardware verified; owner should build, test all four with input toggle on, and report any failures with exact preset name.
+
+Next: improve diagnostics for input event count and confirm true hardware keypress response, not merely editor-click effects.
