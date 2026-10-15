@@ -27,6 +27,9 @@
 #include <QRubberBand>
 #include <QSet>
 #include <QSizePolicy>
+#include <QScrollArea>
+#include <QResizeEvent>
+#include <QBoxLayout>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <algorithm>
@@ -93,8 +96,27 @@ public:
     explicit KeyboardEditor(ApplyColor apply, ReadColor read, ApplyFrame frame, QWidget* parent = nullptr)
         : QWidget(parent), apply_(std::move(apply)), read_(std::move(read)), frame_(std::move(frame))
     {
-        auto* main = new QVBoxLayout(this);
+        // The host Settings pane may be much smaller than the keyboard. Keep
+        // page controls vertically scrollable, but scroll the 61-key layout
+        // horizontally in its own viewport so keys remain usable.
+        setMinimumSize(0, 0);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        auto* outer = new QVBoxLayout(this);
+        outer->setContentsMargins(0, 0, 0, 0);
+        outer->setSpacing(0);
+        auto* page_scroll = new QScrollArea(this);
+        page_scroll->setWidgetResizable(true);
+        page_scroll->setFrameShape(QFrame::NoFrame);
+        page_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        page_scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        outer->addWidget(page_scroll);
+        auto* content = new QWidget(page_scroll);
+        content->setMinimumWidth(0);
+        content->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+        auto* main = new QVBoxLayout(content);
+        main->setContentsMargins(9, 7, 9, 7);
         main->setSpacing(9);
+        page_scroll->setWidget(content);
         auto* heading = new QLabel(QStringLiteral("Apex Pro Mini — Key Lighting"));
         QFont title = heading->font();
         title.setBold(true);
@@ -109,7 +131,18 @@ public:
         note->setWordWrap(true);
         main->addWidget(note);
 
-        auto add_row = [this, main](std::initializer_list<VisualKey> keys)
+        auto* keyboard_scroller = new QScrollArea(content);
+        keyboard_scroller->setWidgetResizable(false);
+        keyboard_scroller->setFrameShape(QFrame::NoFrame);
+        keyboard_scroller->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+        keyboard_scroller->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+        keyboard_scroller->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        auto* keyboard_container = new QWidget(keyboard_scroller);
+        keyboard_container->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        auto* keyboard_layout = new QVBoxLayout(keyboard_container);
+        keyboard_layout->setContentsMargins(0, 0, 0, 0);
+        keyboard_layout->setSpacing(7);
+        auto add_row = [this, keyboard_layout](std::initializer_list<VisualKey> keys)
         {
             auto* line = new QHBoxLayout();
             line->setSpacing(4);
@@ -173,7 +206,7 @@ public:
                     updateSelection();
                 };
             }
-            main->addLayout(line);
+            keyboard_layout->addLayout(line);
         };
 
         add_row({
@@ -203,10 +236,17 @@ public:
         });
 
 
+        keyboard_container->adjustSize();
+        keyboard_container->setFixedSize(keyboard_container->sizeHint());
+        keyboard_scroller->setWidget(keyboard_container);
+        keyboard_scroller->setFixedHeight(keyboard_container->height() + 22);
+        main->addWidget(keyboard_scroller);
+
         rubber_band_ = new QRubberBand(QRubberBand::Rectangle, this);
         rubber_band_->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-        auto* tools = new QHBoxLayout();
+        auto* tools = new QBoxLayout(QBoxLayout::LeftToRight);
+        responsive_rows_.push_back(tools);
         selection_label_ = new QLabel(QStringLiteral("Selected: 0 keys"));
         tools->addWidget(selection_label_, 1);
         auto* select_all = new QPushButton(QStringLiteral("Select All"));
@@ -293,7 +333,8 @@ public:
         reactive_help->setWordWrap(true);
         reactive_help->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Minimum);
         reactive_layout->addWidget(reactive_help);
-        auto* physical_controls = new QHBoxLayout();
+        auto* physical_controls = new QBoxLayout(QBoxLayout::LeftToRight);
+        responsive_rows_.push_back(physical_controls);
         physical_controls->setSpacing(10);
         auto* physical_toggle = new QPushButton(QStringLiteral("Enable physical keypress reactions"));
         physical_toggle->setCheckable(true);
@@ -334,7 +375,8 @@ public:
             }
         });
 #endif
-        auto* fx = new QHBoxLayout();
+        auto* fx = new QBoxLayout(QBoxLayout::LeftToRight);
+        responsive_rows_.push_back(fx);
         fx->addWidget(new QLabel(QStringLiteral("Animation")));
         auto* effect_box = new QComboBox();
         effect_box->addItem(QStringLiteral("Off"), static_cast<int>(Effect::Off));
@@ -372,7 +414,8 @@ public:
         fx->addWidget(stop);
         main->addLayout(fx);
 
-        auto* controls_row = new QHBoxLayout();
+        auto* controls_row = new QBoxLayout(QBoxLayout::LeftToRight);
+        responsive_rows_.push_back(controls_row);
         controls_row->addWidget(new QLabel(QStringLiteral("Brightness")));
         brightness_slider_ = new QSlider(Qt::Horizontal);
         brightness_slider_->setRange(0,100);
@@ -416,7 +459,8 @@ public:
         });
         refreshControlButtons();
 
-        auto* profiles_row=new QHBoxLayout();
+        auto* profiles_row=new QBoxLayout(QBoxLayout::LeftToRight);
+        responsive_rows_.push_back(profiles_row);
         profiles_row->addWidget(new QLabel(QStringLiteral("Profiles")));
         profile_box_=new QComboBox();
         profiles_row->addWidget(profile_box_,1);
@@ -539,9 +583,31 @@ public:
         });
         preview_timer_->start();
         refreshPreview();
-        setMinimumWidth(820);
+        updateResponsiveLayout(width());
     }
 
+protected:
+    void resizeEvent(QResizeEvent* event) override
+    {
+        QWidget::resizeEvent(event);
+        updateResponsiveLayout(event->size().width());
+    }
+
+private:
+    void updateResponsiveLayout(int available_width)
+    {
+        // Qt lays the page out for the scroll viewport's width. Stack
+        // multi-control rows when the Settings pane becomes narrow.
+        const bool compact = available_width < 720;
+        for(auto* row : responsive_rows_)
+        {
+            row->setDirection(compact ? QBoxLayout::TopToBottom
+                                      : QBoxLayout::LeftToRight);
+            row->setSpacing(compact ? 5 : 8);
+        }
+    }
+
+public:
     // Called before the OpenRGB virtual controller is unregistered.
     // The editor may be owned by the host; avoid deleting Qt widgets here.
     void StopActivity()
@@ -629,6 +695,7 @@ private:
         selection_label_->setText(QStringLiteral("Selected: %1 keys").arg(selected_.size()));
     }
 
+    std::vector<QBoxLayout*> responsive_rows_;
     ApplyColor apply_;
     ReadColor read_;
     ApplyFrame frame_;
