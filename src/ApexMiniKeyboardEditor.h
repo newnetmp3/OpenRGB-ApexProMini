@@ -603,8 +603,10 @@ private:
         const bool compact = available_width < 900;
         for(auto* row : responsive_rows_)
         {
-            row->setDirection(compact ? QBoxLayout::TopToBottom
-                                      : QBoxLayout::LeftToRight);
+            const auto direction = compact ? QBoxLayout::TopToBottom
+                                           : QBoxLayout::LeftToRight;
+            if(row->direction() != direction)
+                row->setDirection(direction);
             row->setSpacing(compact ? 5 : 8);
         }
     }
