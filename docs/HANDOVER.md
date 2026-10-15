@@ -90,3 +90,14 @@ Profiles are a local software format; they do not save or read SteelSeries onboa
 ## CTest catalog test fix — 2026-10-14
 
 Owner's `bash scripts/check-build.sh --plugin` stopped at the first offline CTest stage: `apex_pro_mini_catalog_test` line 82 asserted `grad[0].color.r != grad[10].color.r`. The test inadvertently invoked effect ID 5, **Color Shift**, which correctly produces uniform spatial color, instead of effect ID 4, **Gradient**. Fixed regression test to explicitly refer to `Effect::Gradient`, compare known Esc/Backspace HIDs for a spatial red/green gradient, and separately assert `Effect::ColorShift` yields equal key colors. No renderer, evdev, plugin transport or UI changes. Owner must re-run build; the script's `set -e` prevents the Qt plugin build from starting until offline CTest passes. The updated test is committed but not yet rerun on the owner's system.
+
+## Fix: Base/Accent ignored by Prism presets — 2026-10-14
+
+Owner reports Base and Accent pickers have no visible effect on many/all historical presets. Root cause: renderer used built-in Prism color stops and ignored editor Base/Accent except on a few native modes.
+
+- New `EffectControls::custom_palette`, default **false** to preserve established source-derived colors.
+- GUI adds **Use custom colors** checkbox, automatically enabled upon choosing either base or accent; users can uncheck to restore the original palette.
+- `recolor_pixel` maps original per-key brightness/luminance envelope to the custom base/accent colors, preserving black masks and effect timing, motion, heat/keypress response and layout. Applies to Prism factory palette modes, Rainbow, Wave, Comet, Sparkle, Rainbow Split, and Prismatic Sweep. Core native solid/breathing/gradient/color-shift and reactive modes already use their existing base/accent treatment.
+- Existing JSON version-1 profiles gain optional `custom_palette` bool, with absence read as false for backward compatibility. Saved custom selection is restored by Load.
+- Added tests over all non-disabled historical presets with recent synthetic physical KeyHits, restoring original colors when toggle is false, plus profile roundtrip and old-format decode.
+- Status: commits pushed, **not yet owner hardware or Qt5 build verified**. No HID or evdev changes; preserve prior working physical reactive effects. Owner should test e.g. Prism, Pride, Heatmap, reactiveRipple and switching custom colors off.
