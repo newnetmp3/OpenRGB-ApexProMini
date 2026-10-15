@@ -28,3 +28,5 @@ Preserve `68 HID addresses` vs `61 photographed physical keycaps` distinction.
 - [x] Owner reports Prism-style physical keypress reactive effects now work after Heatmap/dispatch fix (2026-10-14)
 
 - [x] Fix catalog test confusing uniform Color Shift (ID 5) with spatial Gradient (ID 4); pending owner rerun of offline and Qt5 builds
+
+- [x] Implement full-catalog optional Base/Accent recoloring and profile persistence after owner reported many presets ignore pickers (pending owner build/hardware QA)
