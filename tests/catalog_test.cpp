@@ -65,6 +65,21 @@ int main()
     while(a_index < key_count && hid_codes[a_index] != 4) ++a_index;
     assert(a_index < key_count);
     assert(heat_double[a_index].color.r > heat_single[a_index].color.r);
+    EffectControls controls;
+    controls.brightness=0.0;
+    for(const int mode : {1,2,3,4,5,6,7,8,9,10,11,12,13,14,104,129})
+    {
+        const auto dark=full_effect_frame(mode,0.3,1.0,{},controls);
+        for(const auto& key : dark)
+            assert(key.color.r==0 && key.color.g==0 && key.color.b==0);
+    }
+    controls.brightness=1.0;
+    controls.base={250,10,20};
+    const auto solid=full_effect_frame(12,0.0,1.0,{},controls);
+    assert(solid[0].color.r==250 && solid[0].color.g==10);
+    controls.accent={10,230,80};
+    const auto grad=full_effect_frame(5,0.0,1.0,{},controls);
+    assert(grad[0].color.r!=grad[10].color.r);
     const auto quiet = full_effect_frame(9, 0.05, 1.0);
     const auto pressed = full_effect_frame(9, 0.05, 1.0, {{4,0.0}});
     for(std::size_t i=0;i<key_count;++i)
