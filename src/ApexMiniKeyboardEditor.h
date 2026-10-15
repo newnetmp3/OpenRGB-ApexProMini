@@ -15,7 +15,7 @@
 #include <QTimer>
 #include <QFont>
 #include <QHBoxLayout>
-#include <QGroupBox>
+#include <QFrame>
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMessageBox>
@@ -236,7 +236,10 @@ public:
             "The seven additional regional/firmware HID addresses remain accessible "
             "through OpenRGB's standard LED list. SteelSeries key HID is provisional."));
         footer->setWordWrap(true);
-        main->addWidget(footer);
+        // Keep the engineering note available without consuming the vertical
+        // space needed for the reactive panel on compact Settings windows.
+        heading->setToolTip(footer->text());
+        footer->deleteLater();
         connect(choose, &QPushButton::clicked, this, [this]()
         {
             if(selected_.isEmpty()) return;
@@ -264,35 +267,44 @@ public:
 #ifdef __linux__
         // Keep this section above the animation selector: reactive presets need
         // the physical-key stream enabled, whereas other effects do not.
-        auto* reactive_panel = new QGroupBox();
+        // Use QFrame instead of QGroupBox. Qt styles can give an untitled
+        // QGroupBox a misleadingly tiny size hint and overlap its children.
+        auto* reactive_panel = new QFrame();
         reactive_panel->setObjectName(QStringLiteral("ApexReactivePanel"));
         reactive_panel->setStyleSheet(QStringLiteral(
-            "QGroupBox#ApexReactivePanel { border: 2px solid #b88720;"
-            " border-radius: 7px; background-color: rgba(184,135,32,25);"
-            " margin-top: 0px; padding: 7px; }"));
+            "QFrame#ApexReactivePanel { border: 2px solid #b88720;"
+            " border-radius: 7px; background-color: rgba(184,135,32,25); }"
+            "QFrame#ApexReactivePanel QLabel { border: none; background: transparent; }"));
+        reactive_panel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+        reactive_panel->setMinimumHeight(105);
         auto* reactive_layout = new QVBoxLayout(reactive_panel);
+        reactive_layout->setContentsMargins(12, 9, 12, 9);
         reactive_layout->setSpacing(5);
         auto* reactive_heading = new QLabel(
             QStringLiteral("⚠  PHYSICAL KEYPRESS REACTIONS"));
         QFont reactive_font = reactive_heading->font();
         reactive_font.setBold(true);
         reactive_heading->setFont(reactive_font);
+        reactive_heading->setMinimumHeight(19);
         reactive_layout->addWidget(reactive_heading);
         auto* reactive_help = new QLabel(QStringLiteral(
-            "Required for Ripple, Reactive, Heatmap and key-triggered Prism effects "
-            "to respond to actual typing. Other animations work without it."));
+            "Turn this on for Ripple, Reactive, Heatmap and Prism keypress effects "
+            "to respond to actual typing."));
         reactive_help->setWordWrap(true);
+        reactive_help->setSizePolicy(QSizePolicy::Preferred,QSizePolicy::Minimum);
         reactive_layout->addWidget(reactive_help);
         auto* physical_controls = new QHBoxLayout();
+        physical_controls->setSpacing(10);
         auto* physical_toggle = new QPushButton(QStringLiteral("Enable physical keypress reactions"));
         physical_toggle->setCheckable(true);
-        physical_toggle->setMinimumHeight(34);
+        physical_toggle->setMinimumHeight(32);
         physical_toggle->setToolTip(QStringLiteral(
             "Opt-in read-only monitoring of this Apex Pro Mini's key-down events. "
             "No key logging, input grabbing or saved keystrokes."));
         physical_controls->addWidget(physical_toggle);
-        physical_status_ = new QLabel(QStringLiteral("Status: OFF — physical typing will not trigger reactive lighting"));
+        physical_status_ = new QLabel(QStringLiteral("OFF — reactive typing disabled"));
         physical_status_->setWordWrap(true);
+        physical_status_->setSizePolicy(QSizePolicy::Expanding,QSizePolicy::Minimum);
         physical_controls->addWidget(physical_status_, 1);
         reactive_layout->addLayout(physical_controls);
         main->addWidget(reactive_panel);
@@ -304,7 +316,7 @@ public:
             {
                 physical_input_->stop();
                 physical_status_->setText(QStringLiteral(
-                    "Status: OFF — physical typing will not trigger reactive lighting"));
+                    "OFF — reactive typing disabled"));
                 return;
             }
             const QString status = physical_input_->start([this](std::uint8_t hid)
@@ -313,8 +325,8 @@ public:
                     hits_.push_back({hid, effect_clock_.elapsed() / 1000.0});
             });
             physical_status_->setText(physical_input_->active()
-                ? QStringLiteral("Status: CONNECTED — %1").arg(status)
-                : QStringLiteral("Status: UNAVAILABLE — %1").arg(status));
+                ? QStringLiteral("CONNECTED — %1").arg(status)
+                : QStringLiteral("UNAVAILABLE — %1").arg(status));
             if(!physical_input_->active())
             {
                 const QSignalBlocker block(physical_toggle);
