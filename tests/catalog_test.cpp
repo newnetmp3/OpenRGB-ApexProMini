@@ -1,6 +1,7 @@
 #include "apex_pro_mini_catalog.h"
 #include <cassert>
 #include <cstring>
+#include <cmath>
 
 int main()
 {
@@ -38,6 +39,22 @@ int main()
         assert(a[i].color.r == b[i].color.r);
         assert(a[i].color.g == b[i].color.g);
         assert(a[i].color.b == b[i].color.b);
+    }
+    // WabashAndLake's short 2.1s source period needs its own slider
+    // compensation, without changing other Prism or core effects.
+    const int wabash = factory_effect_base + 10;
+    assert(std::strcmp(factory_presets[10].id, "wabashAndLake") == 0);
+    assert(std::abs(preset_motion_speed(wabash, 1.0) - 0.35) < 1e-9);
+    assert(std::abs(preset_motion_speed(wabash, 1.625) - 0.56875) < 1e-9);
+    assert(std::abs(preset_motion_speed(wabash, 3.0) - 1.05) < 1e-9);
+    assert(std::abs(preset_motion_speed(factory_effect_base+4, 1.625) - 1.625) < 1e-9);
+    const auto slow = full_effect_frame(wabash, 2.0, 1.0);
+    const auto faster = full_effect_frame(wabash, 1.0, 2.0);
+    for(std::size_t i=0; i<key_count; ++i)
+    {
+        assert(slow[i].color.r == faster[i].color.r);
+        assert(slow[i].color.g == faster[i].color.g);
+        assert(slow[i].color.b == faster[i].color.b);
     }
     assert(reactive_kind(factory_effect_base+5) == 14);
     assert(reactive_kind(factory_effect_base+6) == 8);
