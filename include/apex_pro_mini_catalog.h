@@ -128,7 +128,29 @@ inline std::vector<KeyColor> full_effect_frame(int effect, double seconds,
     {
         auto frame = effect_frame(static_cast<Effect>(effect),
                                   controls.reverse ? -seconds : seconds, speed);
-        for(auto& key : frame) key.color = dim_color(key.color,controls.brightness);
+        for(auto& key : frame)
+        {
+            double mix = 0.0;
+            if(effect == static_cast<int>(Effect::Breathing))
+            {
+                const double level = 0.08 + 0.92 * (0.5 + 0.5 *
+                    std::cos(2.0*pi*seconds*speed*0.35));
+                key.color = dim_color(controls.base,level);
+            }
+            else if(effect == static_cast<int>(Effect::Gradient) ||
+                    effect == static_cast<int>(Effect::ColorShift))
+            {
+                if(effect == static_cast<int>(Effect::ColorShift))
+                    mix=0.5+0.5*std::sin(seconds*speed*1.2);
+                else
+                {
+                    for(const auto& p : positions)
+                        if(p.usage == key.hid) { mix=(p.column+0.5)/layout_columns; break; }
+                }
+                key.color=lerp(controls.base,controls.accent,mix);
+            }
+            key.color=dim_color(key.color,controls.brightness);
+        }
         return frame;
     }
 
