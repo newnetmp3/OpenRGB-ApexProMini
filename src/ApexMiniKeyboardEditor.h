@@ -143,19 +143,25 @@ public:
         keyboard_container->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
         auto* keyboard_layout = new QVBoxLayout(keyboard_container);
         keyboard_layout->setContentsMargins(0, 0, 0, 0);
-        keyboard_layout->setSpacing(7);
+        keyboard_layout->setSpacing(5);
         auto add_row = [this, keyboard_layout](std::initializer_list<VisualKey> keys)
         {
             auto* line = new QHBoxLayout();
-            line->setSpacing(4);
+            line->setSpacing(3);
             for(const auto& key : keys)
             {
                 auto* button = new KeyButton(QString::fromUtf8(key.label));
                 button->setToolTip(QStringLiteral("HID %1").arg(key.hid));
-                button->setMinimumHeight(43);
-                button->setMinimumWidth(static_cast<int>(45.0 * key.units));
-                button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-                line->addWidget(button, static_cast<int>(key.units * 100));
+                // Keycaps must not grow to fill the Settings panel. Keep a
+                // predictable, compact unit width even on very wide windows.
+                // Longer labels receive enough room to remain readable.
+                const int unit_width = 40;
+                const int label_width = button->fontMetrics().horizontalAdvance(
+                    QString::fromUtf8(key.label)) + 16;
+                const int key_width = std::max(static_cast<int>(key.units * unit_width),
+                                               label_width);
+                button->setFixedSize(key_width, 36);
+                line->addWidget(button, 0);
                 buttons_.push_back({key.hid, button});
                 button->pressed_at = [this, button, key](const QPoint& pos, Qt::KeyboardModifiers modifiers)
                 {
@@ -208,6 +214,7 @@ public:
                     updateSelection();
                 };
             }
+            line->addStretch(1); // row stays left aligned, not evenly stretched
             keyboard_layout->addLayout(line);
         };
 
