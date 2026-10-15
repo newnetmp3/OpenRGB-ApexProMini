@@ -10,7 +10,9 @@
 - [ ] Validate effects build/behavior, frame pacing and transition edge cases
 - [x] Implement all 14 core effects (including click-driven Ripple, Reactive, Heatmap and Reactive Line) — new modes pending owner compile/hardware QA
 - [x] Port 31 historical Prism-style preset entries (30 unique base records plus redPulse/faze rename) and 36 source-derived regional variants — independent approximations, not GG-parity certified
-- [ ] Capture real hardware keypress events for reactive effects (currently triggered only by clicking keys in plugin editor)
+- [x] Implement opt-in physical evdev keypress capture for verified wired Mini input node (pending owner build/runtime validation)
+- [ ] Validate physical typing reactions and permissions on owner's Arch Linux Wayland desktop
+- [ ] Add hotplug reconnect and physical-event input status recovery
 - [ ] Validate effects and regional masks against physical layout and owner hardware
 - [x] Label all reconstructed Prism-style presets and preserve provenance; visual parity unverified
 - [ ] Add preset saving/loading and per-effect controls
