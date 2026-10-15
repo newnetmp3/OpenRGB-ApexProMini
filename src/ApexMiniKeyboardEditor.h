@@ -105,6 +105,7 @@ public:
         outer->setContentsMargins(0, 0, 0, 0);
         outer->setSpacing(0);
         auto* page_scroll = new QScrollArea(this);
+        page_scroll->setObjectName(QStringLiteral("ApexSettingsScroll"));
         page_scroll->setWidgetResizable(true);
         page_scroll->setFrameShape(QFrame::NoFrame);
         page_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -132,6 +133,7 @@ public:
         main->addWidget(note);
 
         auto* keyboard_scroller = new QScrollArea(content);
+        keyboard_scroller->setObjectName(QStringLiteral("ApexKeyboardScroll"));
         keyboard_scroller->setWidgetResizable(false);
         keyboard_scroller->setFrameShape(QFrame::NoFrame);
         keyboard_scroller->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -598,7 +600,7 @@ private:
     {
         // Qt lays the page out for the scroll viewport's width. Stack
         // multi-control rows when the Settings pane becomes narrow.
-        const bool compact = available_width < 720;
+        const bool compact = available_width < 900;
         for(auto* row : responsive_rows_)
         {
             row->setDirection(compact ? QBoxLayout::TopToBottom
